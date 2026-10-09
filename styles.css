@@ -135,7 +135,7 @@ h1 { margin-bottom: 6px; font: 700 calc(var(--font-scale, 1) * 25px)/1.25 "Segoe
 .chart-range { color: #a4a8b1; font-size: calc(var(--font-scale, 1) * 9px); }
 .chart-wrap { display: flex; height: 126px; gap: 11px; padding-top: 13px; }
 .chart-y-axis { display: flex; flex: 0 0 34px; flex-direction: column; justify-content: space-between; padding-bottom: 2px; color: #adb1b9; font-size: calc(var(--font-scale, 1) * 8px); text-align: right; }
-.revenue-chart { overflow: visible; width: 100%; height: 100%; }
+.revenue-chart { display: block; flex: 1 1 0; min-width: 0; width: 100%; height: 100%; overflow: hidden; }
 .chart-x-axis { display: grid; grid-template-columns: repeat(7,1fr); margin: 7px 0 0 45px; color: #a8acb4; font-size: calc(var(--font-scale, 1) * 8px); text-align: center; }
 .text-link { padding: 2px 0; color: #4a9273; background: none; border: 0; font-size: calc(var(--font-scale, 1) * 9px); font-weight: 600; white-space: nowrap; }
 .text-link span { margin-left: 4px; font-size: calc(var(--font-scale, 1) * 12px); }

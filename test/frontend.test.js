@@ -24,6 +24,7 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   let movements = [];
   let suppliers = [];
   let purchaseOrders = [];
+  let updateGreeting;
   const requests = [];
 
   window.fetch = async (url, options = {}) => {
@@ -138,6 +139,10 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
     return { ok: false, status: 404, json: async () => ({ error: "not found" }) };
   };
 
+  window.setInterval = (callback) => {
+    updateGreeting = callback;
+    return 1;
+  };
   window.eval(source);
   const waitFor = async (predicate) => {
     for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -174,10 +179,14 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   window.document.getElementById("product-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   await waitFor(() => productList.length === 1 && window.document.getElementById("toast-region").textContent.includes("Product added"));
   assert.equal(requests.find((item) => item.url === "/api/products").csrf, "authenticated-admin-token");
+  assert.match(window.document.getElementById("inventory-body").textContent, /TSh\s*13/);
+  assert.doesNotMatch(window.document.getElementById("inventory-body").textContent, /\$/);
 
   window.document.querySelector('[data-action="record-sale"]').click();
   window.document.getElementById("sale-quantity").value = "2";
   window.document.getElementById("sale-price").value = "12.50";
+  window.document.getElementById("sale-price").dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert.match(window.document.getElementById("sale-total").textContent, /TSh\s*25/);
   window.document.getElementById("sale-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   await waitFor(() => sales.length === 1 && productList[0].stock === 3 && window.document.getElementById("toast-region").textContent.includes("Sale recorded"));
   assert.equal(sales[0].total, 25);
@@ -260,6 +269,16 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   assert.equal(window.document.querySelector('[data-display-setting="theme"][data-value="dark"]').getAttribute("aria-pressed"), "true");
   const savedPreferences = window.localStorage.getItem("stockroom-display-preferences");
   assert.deepEqual(JSON.parse(savedPreferences), { theme: "dark", fontSize: "large" });
+
+  const OriginalDate = window.Date;
+  window.Date = class extends OriginalDate {
+    constructor(...args) {
+      super(...(args.length ? args : [2026, 9, 9, 15, 0]));
+    }
+  };
+  updateGreeting();
+  assert.match(window.document.getElementById("greeting-text").textContent, /Good afternoon/);
+  window.Date = OriginalDate;
 
   dom.window.close();
 

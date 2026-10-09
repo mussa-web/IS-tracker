@@ -22,7 +22,11 @@
   const displayPreferenceKey = "stockroom-display-preferences";
   let toastTimer;
   const byId = (id) => document.getElementById(id);
-  const money = (amount) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(Number(amount) || 0);
+  const money = (amount) => new Intl.NumberFormat("en-TZ", {
+    style: "currency",
+    currency: "TZS",
+    maximumFractionDigits: 0,
+  }).format(Number(amount) || 0);
   const number = (value) => new Intl.NumberFormat().format(Number(value) || 0);
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -205,7 +209,15 @@
     byId(targetId).innerHTML = cards.join("");
   }
 
+  function updateDashboardGreeting() {
+    const now = new Date();
+    const hour = now.getHours();
+    byId("greeting-text").textContent = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    byId("today-label").textContent = formatDate(now, { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
+  }
+
   function renderDashboard() {
+    updateDashboardGreeting();
     const todaysSales = salesSince(1);
     const lastSevenDays = salesSince(7);
     const todaysRevenue = sum(todaysSales, (sale) => sale.total);
@@ -244,7 +256,6 @@
     byId("units-in-stock").textContent = number(units);
     byId("low-stock-count").textContent = number(stockAlerts.length);
     byId("inventory-nav-count").textContent = number(data.products.length);
-    byId("today-label").textContent = formatDate(new Date(), { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
     byId("alerts-button").setAttribute("aria-label", `${stockAlerts.length} low-stock items. View inventory`);
     byId("alerts-button").querySelector(".notification-dot").classList.toggle("hidden", stockAlerts.length === 0);
   }
@@ -287,7 +298,7 @@
     }));
     const grid = [0, 1, 2, 3, 4].map((step) => {
       const y = padding.top + (innerHeight / 4) * step;
-      return `<line x1="${padding.left}" y1="${y}" x2="${width}" y2="${y}" stroke="#eff1f2" stroke-dasharray="${step === 4 ? "0" : "3 5"}" />`;
+      return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#eff1f2" stroke-dasharray="${step === 4 ? "0" : "3 5"}" />`;
     }).join("");
     const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
     const area = `${path} L${points[points.length - 1].x},${height} L${points[0].x},${height} Z`;
@@ -638,7 +649,7 @@
     return `<div class="order-line">
       <label class="field">Product<select data-order-product required>${options || '<option value="">No products available</option>'}</select></label>
       <label class="field">Quantity<input data-order-quantity type="number" min="1" max="100000000" step="1" value="${quantity || 1}" required /></label>
-      <label class="field">Unit cost<input data-order-cost type="number" min="0" step="0.01" value="${selectedProduct ? Number(selectedProduct.cost || 0).toFixed(2) : "0.00"}" required /></label>
+      <label class="field">Unit cost<div class="input-prefix"><span>TSh</span><input data-order-cost type="number" min="0" step="0.01" value="${selectedProduct ? Number(selectedProduct.cost || 0).toFixed(2) : "0.00"}" required /></div></label>
       <button class="text-link danger-link remove-order-line" type="button" aria-label="Remove product line">Remove</button>
     </div>`;
   }
@@ -1115,6 +1126,7 @@
   });
 
   applyDisplayPreferences(readDisplayPreferences());
+  window.setInterval(updateDashboardGreeting, 60 * 1000);
 
   async function initialize() {
     try {

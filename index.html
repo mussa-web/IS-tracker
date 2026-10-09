@@ -129,7 +129,7 @@
             <div class="page-heading dashboard-heading">
               <div>
                 <p class="eyebrow" id="today-label">YOUR STORE AT A GLANCE</p>
-                <h1>Good morning <span class="wave" aria-hidden="true">✳</span></h1>
+                <h1><span id="greeting-text">Good morning</span> <span class="wave" aria-hidden="true">✳</span></h1>
                 <p class="heading-subtitle">Here’s what’s happening with your store today.</p>
               </div>
               <div class="heading-actions">
@@ -146,7 +146,7 @@
                   <div><h2>Revenue over time</h2><p>Your sales performance this week</p></div>
                   <button class="period-select" type="button" aria-label="Chart period">Last 7 days <span>⌄</span></button>
                 </div>
-                <div class="chart-summary"><strong id="chart-total">$0.00</strong><span class="chart-range" id="chart-range">This week</span></div>
+                <div class="chart-summary"><strong id="chart-total">TSh 0</strong><span class="chart-range" id="chart-range">This week</span></div>
                 <div class="chart-wrap"><div class="chart-y-axis" id="chart-y-axis"></div><svg class="revenue-chart" id="revenue-chart" role="img" aria-label="Daily sales revenue chart"></svg></div>
                 <div class="chart-x-axis" id="chart-x-axis"></div>
               </section>
@@ -171,9 +171,9 @@
               </section>
               <section class="panel value-panel manager-only">
                 <div class="panel-heading"><div><h2>Inventory value</h2><p>At cost across all products</p></div><span class="value-icon" aria-hidden="true">↗</span></div>
-                <strong class="inventory-value" id="inventory-value">$0.00</strong>
+                <strong class="inventory-value" id="inventory-value">TSh 0</strong>
                 <div class="value-divider"></div>
-                <div class="value-foot"><span><i class="tiny-dot green-dot"></i> Retail value</span><strong id="retail-value">$0.00</strong></div>
+                <div class="value-foot"><span><i class="tiny-dot green-dot"></i> Retail value</span><strong id="retail-value">TSh 0</strong></div>
                 <div class="value-foot"><span><i class="tiny-dot blue-dot"></i> Units in stock</span><strong id="units-in-stock">0</strong></div>
                 <div class="value-foot"><span><i class="tiny-dot orange-dot"></i> Low stock items</span><strong id="low-stock-count">0</strong></div>
               </section>
@@ -238,7 +238,7 @@
             <div class="page-heading"><div><p class="eyebrow">KNOW YOUR NUMBERS</p><h1>Reports</h1><p class="heading-subtitle">A clear picture of how your store is performing.</p></div></div>
             <div class="metrics-grid reports-metrics" id="reports-metrics"></div>
             <div class="reports-grid">
-              <section class="panel report-chart-panel"><div class="panel-heading"><div><h2>Sales trend</h2><p>Revenue from the last 7 days</p></div></div><div class="chart-summary"><strong id="report-chart-total">$0.00</strong><span class="chart-range">Last 7 days</span></div><div class="chart-wrap"><div class="chart-y-axis" id="report-y-axis"></div><svg class="revenue-chart" id="report-chart" role="img" aria-label="Seven day sales revenue chart"></svg></div><div class="chart-x-axis" id="report-x-axis"></div></section>
+              <section class="panel report-chart-panel"><div class="panel-heading"><div><h2>Sales trend</h2><p>Revenue from the last 7 days</p></div></div><div class="chart-summary"><strong id="report-chart-total">TSh 0</strong><span class="chart-range">Last 7 days</span></div><div class="chart-wrap"><div class="chart-y-axis" id="report-y-axis"></div><svg class="revenue-chart" id="report-chart" role="img" aria-label="Seven day sales revenue chart"></svg></div><div class="chart-x-axis" id="report-x-axis"></div></section>
               <section class="panel top-products-panel"><div class="panel-heading"><div><h2>Top products</h2><p>Best sellers by units sold</p></div></div><div id="top-products-list" class="top-products-list"></div></section>
               <section class="panel category-panel"><div class="panel-heading"><div><h2>Stock by category</h2><p>Units currently on hand</p></div></div><div id="category-breakdown" class="category-breakdown"></div></section>
             </div>
@@ -316,8 +316,8 @@
           <div class="form-grid">
             <label class="field">SKU <span>*</span><input id="product-sku" name="sku" required maxlength="32" placeholder="e.g. MUG-001" /></label>
             <label class="field">Category <span>*</span><input id="product-category" name="category" required maxlength="40" list="category-options" placeholder="e.g. Homeware" /><datalist id="category-options"></datalist></label>
-            <label class="field">Selling price <span>*</span><div class="input-prefix"><span>$</span><input id="product-price" name="price" type="number" min="0.01" step="0.01" required placeholder="0.00" /></div></label>
-            <label class="field">Cost per unit<input id="product-cost" name="cost" type="number" min="0" step="0.01" placeholder="0.00" /></label>
+            <label class="field">Selling price <span>*</span><div class="input-prefix"><span>TSh</span><input id="product-price" name="price" type="number" min="0.01" step="0.01" required placeholder="0.00" /></div></label>
+            <label class="field">Cost per unit<div class="input-prefix"><span>TSh</span><input id="product-cost" name="cost" type="number" min="0" step="0.01" placeholder="0.00" /></div></label>
             <label class="field">Quantity in stock <span>*</span><input id="product-stock" name="stock" type="number" min="0" step="1" required placeholder="0" /><small id="product-stock-note" class="hidden">To preserve the stock history, use Adjust stock from the inventory list.</small></label>
             <label class="field">Low stock threshold<input id="product-reorder" name="reorderLevel" type="number" min="0" step="1" placeholder="5" /></label>
           </div>
@@ -340,9 +340,9 @@
           <div class="product-stock-hint" id="sale-stock-hint"></div>
           <div class="form-grid sale-form-grid">
             <label class="field">Quantity sold <span>*</span><input id="sale-quantity" name="quantity" type="number" min="1" step="1" value="1" required /></label>
-            <label class="field">Unit price <span>*</span><div class="input-prefix"><span>$</span><input id="sale-price" name="price" type="number" min="0.01" step="0.01" required /></div></label>
+            <label class="field">Unit price <span>*</span><div class="input-prefix"><span>TSh</span><input id="sale-price" name="price" type="number" min="0.01" step="0.01" required /></div></label>
           </div>
-          <div class="sale-total"><span>Sale total</span><strong id="sale-total">$0.00</strong></div>
+          <div class="sale-total"><span>Sale total</span><strong id="sale-total">TSh 0</strong></div>
           <p class="form-error hidden" id="sale-error" role="alert"></p>
           <div class="modal-actions"><button type="button" class="button button-secondary" data-close-modal>Cancel</button><button type="submit" class="button button-primary">Complete sale</button></div>
         </form>
