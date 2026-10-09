@@ -1,0 +1,30 @@
+{
+  "name": "stockroom",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared inventory and sales tracking with PostgreSQL and role-based access",
+  "scripts": {
+    "start": "node server.js",
+    "backup": "node backup.js",
+    "check": "node --check server.js && node --check app.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "nodemailer": "^10.0.16",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "supertest": "^7.3.1"
+  }
+}

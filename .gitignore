@@ -1,0 +1,7 @@
+node_modules/
+.env
+.stockroom-backups/
+backups/
+*.dump
+*.partial
+npm-debug.log*
