@@ -183,20 +183,31 @@ function createApp(pool, options = {}) {
   }));
 
   app.post("/api/auth/verify-email", limiter, asyncRoute(async (req, res) => {
-    if (typeof req.body.token !== "string" || !/^[a-f0-9]{64}$/.test(req.body.token)) throw httpError(400, "This verification link is invalid or expired.");
+    if (typeof req.body.token !== "string" || !/^[a-f0-9]{64}$/.test(req.body.token)) {
+      console.warn("Email verification rejected:", { reason: "invalid_token_format" });
+      throw httpError(400, "This verification link is invalid or expired.");
+    }
     const client = await pool.connect();
     let user;
     try {
       await client.query("BEGIN");
       const { rows } = await client.query(
-        `SELECT u.id, u.name, u.email, u.role, u.active, u.email_verified
+        `SELECT u.id, u.name, u.email, u.role, u.active, u.email_verified, v.expires_at
          FROM email_verifications v JOIN users u ON u.id = v.user_id
-         WHERE v.token_hash = $1 AND v.expires_at > now()
+         WHERE v.token_hash = $1
          FOR UPDATE OF v, u`,
         [hashEmailVerification(req.body.token)],
       );
       user = rows[0];
-      if (!user || !user.active) throw httpError(400, "This verification link is invalid or expired.");
+      if (!user || new Date(user.expires_at) <= new Date() || !user.active) {
+        const reason = !user
+          ? "token_not_found"
+          : new Date(user.expires_at) <= new Date()
+            ? "token_expired"
+            : "account_inactive";
+        console.warn("Email verification rejected:", { reason });
+        throw httpError(400, "This verification link is invalid or expired.");
+      }
       if (!user.email_verified) {
         await client.query("UPDATE users SET email_verified = true, updated_at = now() WHERE id = $1", [user.id]);
       }
