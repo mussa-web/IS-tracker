@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f8fa" />
+    <meta name="theme-color" id="theme-color" content="#f7f8fa" />
     <meta
       name="description"
       content="Shared inventory and sales tracking for small businesses."
@@ -87,6 +87,10 @@
           <button class="nav-link admin-only" data-page="users" type="button">
             <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7" r="4"/><path d="M17 4.5a4 4 0 0 1 0 7.5m4 8v-1.5a4 4 0 0 0-3-3.87"/></svg></span>
             <span>Team</span>
+          </button>
+          <button class="nav-link" data-page="settings" type="button">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1 1.9-1.8 3.1-2.2-.3-.1-.1a7.7 7.7 0 0 1-1.7 1l-.7 2.1h-3.6l-.7-2.1a7.7 7.7 0 0 1-1.7-1l-.1.1-2.2.3-1.8-3.1 1.1-1.9.1-.1a7.7 7.7 0 0 1 0-2l-.1-.1-1.1-1.9 1.8-3.1 2.2.3.1.1a7.7 7.7 0 0 1 1.7-1l.7-2.1h3.6l.7 2.1a7.7 7.7 0 0 1 1.7 1l.1-.1 2.2-.3 1.8 3.1-1.1 1.9-.1.1a7.7 7.7 0 0 1 0 2Z" transform="translate(-1 -1) scale(.92)"/></svg></span>
+            <span>Settings</span>
           </button>
         </nav>
 
@@ -274,6 +278,29 @@
             <section class="panel sales-panel">
               <div class="list-toolbar"><div><h2>Workspace members <span class="subtle-count" id="user-count">0</span></h2><p>Administrators can invite managers and cashiers.</p></div></div>
               <div class="table-wrap"><table class="users-table"><thead><tr><th>TEAM MEMBER</th><th>EMAIL</th><th>ROLE</th><th>STATUS</th><th>JOINED</th><th class="align-right">ACTIONS</th></tr></thead><tbody id="users-body"></tbody></table></div>
+            </section>
+          </section>
+          <section class="page-view" id="page-settings" aria-label="Display settings">
+            <div class="page-heading">
+              <div><p class="eyebrow">YOUR PREFERENCES</p><h1>Display settings</h1><p class="heading-subtitle">Adjust how Stockroom looks on this device.</p></div>
+            </div>
+            <section class="panel settings-panel">
+              <div class="settings-option">
+                <div><h2>Theme</h2><p>Choose a light or dark appearance.</p></div>
+                <div class="settings-choice-group" role="group" aria-label="Theme">
+                  <button class="settings-choice" type="button" data-display-setting="theme" data-value="light" aria-pressed="true">Light</button>
+                  <button class="settings-choice" type="button" data-display-setting="theme" data-value="dark" aria-pressed="false">Dark</button>
+                </div>
+              </div>
+              <div class="settings-option">
+                <div><h2>Font size</h2><p>Choose a comfortable text size.</p></div>
+                <div class="settings-choice-group" role="group" aria-label="Font size">
+                  <button class="settings-choice" type="button" data-display-setting="font-size" data-value="small" aria-pressed="false">Small</button>
+                  <button class="settings-choice" type="button" data-display-setting="font-size" data-value="normal" aria-pressed="true">Default</button>
+                  <button class="settings-choice" type="button" data-display-setting="font-size" data-value="large" aria-pressed="false">Large</button>
+                </div>
+              </div>
+              <p class="settings-note">These preferences are saved in this browser and don’t change settings for other team members.</p>
             </section>
           </section>
         </div>

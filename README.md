@@ -1,6 +1,6 @@
 # Stockroom
 
-Stockroom is a shared inventory and sales tracker backed by PostgreSQL. Password hashes, products, stock levels, sales, verified email addresses, and server-side login sessions are stored in the database; browser storage is not used as the application's data store.
+Stockroom is a shared inventory and sales tracker backed by PostgreSQL. Password hashes, products, stock levels, sales, verified email addresses, and server-side login sessions are stored in the database; browser storage is not used as the application's data store. Per-device display preferences, including light/dark theme and font size, are saved locally in the browser.
 
 ## Requirements
 

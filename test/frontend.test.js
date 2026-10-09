@@ -251,8 +251,32 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   assert.equal(window.document.getElementById("page-reports").classList.contains("hidden"), true);
   assert.equal(window.document.querySelector('[data-action="add-product"]').classList.contains("hidden"), true);
   assert.equal(window.document.getElementById("inventory-body").querySelector("tr").children.length, 6);
+  window.document.querySelector('[data-page="settings"]').click();
+  assert.equal(window.document.getElementById("page-settings").classList.contains("active"), true);
+  window.document.querySelector('[data-display-setting="theme"][data-value="dark"]').click();
+  window.document.querySelector('[data-display-setting="font-size"][data-value="large"]').click();
+  assert.equal(window.document.documentElement.dataset.theme, "dark");
+  assert.equal(window.document.documentElement.dataset.fontSize, "large");
+  assert.equal(window.document.querySelector('[data-display-setting="theme"][data-value="dark"]').getAttribute("aria-pressed"), "true");
+  const savedPreferences = window.localStorage.getItem("stockroom-display-preferences");
+  assert.deepEqual(JSON.parse(savedPreferences), { theme: "dark", fontSize: "large" });
 
   dom.window.close();
+
+  const returningDom = new JSDOM(html, { url: "http://localhost/", runScripts: "outside-only" });
+  returningDom.window.localStorage.setItem("stockroom-display-preferences", savedPreferences);
+  returningDom.window.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ setupRequired: true, user: null, csrfToken: "anonymous-token" }),
+  });
+  returningDom.window.eval(source);
+  for (let attempt = 0; attempt < 60 && returningDom.window.document.getElementById("setup-form").classList.contains("hidden"); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(returningDom.window.document.documentElement.dataset.theme, "dark");
+  assert.equal(returningDom.window.document.documentElement.dataset.fontSize, "large");
+  returningDom.window.close();
 });
 
 test("verification link confirms email and signs the user in", async () => {

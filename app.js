@@ -19,6 +19,7 @@
   let movementHasMore = false;
   let activeReceiptOrderId = null;
   const verificationToken = new URLSearchParams(window.location.search).get("verify");
+  const displayPreferenceKey = "stockroom-display-preferences";
   let toastTimer;
   const byId = (id) => document.getElementById(id);
   const money = (amount) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(Number(amount) || 0);
@@ -158,6 +159,42 @@
     region.innerHTML = `<div class="toast${isError ? " error" : ""}" role="status">${escapeHtml(message)}</div>`;
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => { region.innerHTML = ""; }, 3400);
+  }
+
+  function readDisplayPreferences() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(displayPreferenceKey) || "{}");
+      return {
+        theme: saved.theme === "dark" ? "dark" : "light",
+        fontSize: ["small", "normal", "large"].includes(saved.fontSize) ? saved.fontSize : "normal",
+      };
+    } catch (error) {
+      console.info("Display preferences are unavailable in this browser.", error);
+      return { theme: "light", fontSize: "normal" };
+    }
+  }
+
+  function applyDisplayPreferences(preferences) {
+    document.documentElement.dataset.theme = preferences.theme;
+    document.documentElement.dataset.fontSize = preferences.fontSize;
+    document.querySelectorAll("[data-display-setting]").forEach((button) => {
+      const value = button.dataset.displaySetting === "theme" ? preferences.theme : preferences.fontSize;
+      button.setAttribute("aria-pressed", String(button.dataset.value === value));
+    });
+    const themeColor = byId("theme-color");
+    if (themeColor) themeColor.content = preferences.theme === "dark" ? "#171a20" : "#f7f8fa";
+  }
+
+  function saveDisplayPreference(setting, value) {
+    const preferences = readDisplayPreferences();
+    if (setting === "theme") preferences.theme = value;
+    else preferences.fontSize = value;
+    applyDisplayPreferences(preferences);
+    try {
+      window.localStorage.setItem(displayPreferenceKey, JSON.stringify(preferences));
+    } catch (error) {
+      console.info("Display preferences could not be saved in this browser.", error);
+    }
   }
 
   function metricCard(label, value, icon, tone, foot) {
@@ -450,11 +487,11 @@
   }
 
   function navigate(page, focusSearch) {
-    if (!["dashboard", "inventory", "sales", "reports", "movements", "procurement", "users"].includes(page)) return;
+    if (!["dashboard", "inventory", "sales", "reports", "movements", "procurement", "users", "settings"].includes(page)) return;
     if (["reports", "movements", "procurement"].includes(page) && currentUser.role === "cashier" || page === "users" && currentUser.role !== "admin") return;
     activePage = page;
     document.querySelectorAll(".page-view").forEach((view) => view.classList.toggle("active", view.id === `page-${page}`));
-    byId("breadcrumb-current").textContent = { dashboard: "Overview", inventory: "Inventory", sales: "Sales", reports: "Reports", movements: "Stock history", procurement: "Purchasing", users: "Team" }[page];
+    byId("breadcrumb-current").textContent = { dashboard: "Overview", inventory: "Inventory", sales: "Sales", reports: "Reports", movements: "Stock history", procurement: "Purchasing", users: "Team", settings: "Settings" }[page];
     document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.page === page));
     if (page === "inventory" && focusSearch !== false) byId("inventory-search").focus({ preventScroll: true });
     if (page === "users") renderUsers().catch((error) => showToast(error.message, true));
@@ -664,6 +701,11 @@
   }
 
   document.addEventListener("click", (event) => {
+    const displayButton = event.target.closest("[data-display-setting]");
+    if (displayButton) {
+      saveDisplayPreference(displayButton.dataset.displaySetting, displayButton.dataset.value);
+      return;
+    }
     const pageButton = event.target.closest("[data-page]");
     if (pageButton) { navigate(pageButton.dataset.page); return; }
     const actionButton = event.target.closest("[data-action]");
@@ -1071,6 +1113,8 @@
     renderChart("revenue-chart", "chart-y-axis", "chart-x-axis", getDailySales(7));
     renderChart("report-chart", "report-y-axis", "report-x-axis", getDailySales(7));
   });
+
+  applyDisplayPreferences(readDisplayPreferences());
 
   async function initialize() {
     try {
