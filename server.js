@@ -828,7 +828,14 @@ async function deliverVerificationEmail(options, user, token) {
   });
   try {
     await transporter.sendMail({ ...message, from: process.env.SMTP_FROM });
-  } catch {
+  } catch (error) {
+    console.error("Verification email delivery failed:", {
+      code: error.code || null,
+      command: error.command || null,
+      responseCode: error.responseCode || null,
+      host: process.env.SMTP_HOST || null,
+      port: Number(process.env.SMTP_PORT) || null,
+    });
     throw httpError(503, "Verification email could not be sent. Check SMTP settings and request a new verification link.");
   }
 }
