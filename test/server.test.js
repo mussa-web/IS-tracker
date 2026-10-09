@@ -335,6 +335,47 @@ const productBody = {
   reorderLevel: 2,
 };
 
+test("Mailjet verification delivery uses the HTTPS API and verified sender", async () => {
+  const envKeys = ["MAILJET_API_KEY", "MAILJET_API_SECRET", "SMTP_FROM"];
+  const originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
+  process.env.MAILJET_API_KEY = "test-api-key";
+  process.env.MAILJET_API_SECRET = "test-secret";
+  process.env.SMTP_FROM = "Stockroom <verified@example.test>";
+  let requestDetails;
+  const app = createApp(new MemoryPool(), {
+    sessionSecret: "test-only-secret-with-at-least-32-bytes",
+    sessionStore: new session.MemoryStore(),
+    disableRateLimit: true,
+    fetch: async (url, init) => {
+      requestDetails = { url, init };
+      return { ok: true, status: 200, json: async () => ({ Messages: [{ Status: "success" }] }) };
+    },
+  });
+  try {
+    const agent = request.agent(app);
+    const csrfToken = (await agent.get("/api/auth/session").expect(200)).body.csrfToken;
+    await agent.post("/api/auth/setup")
+      .set("X-CSRF-Token", csrfToken)
+      .send({ name: "Admin", email: "admin@example.test", password: "correct-horse-battery-staple" })
+      .expect(202);
+
+    assert.equal(requestDetails.url, "https://api.mailjet.com/v3.1/send");
+    assert.equal(requestDetails.init.method, "POST");
+    assert.equal(requestDetails.init.headers.Authorization, `Basic ${Buffer.from("test-api-key:test-secret").toString("base64")}`);
+    const payload = JSON.parse(requestDetails.init.body);
+    assert.deepEqual(payload.Messages[0].From, { Email: "verified@example.test", Name: "Stockroom" });
+    assert.deepEqual(payload.Messages[0].To, [{ Email: "admin@example.test" }]);
+    assert.equal(payload.Messages[0].Subject, "Verify your Stockroom email");
+    assert.match(payload.Messages[0].TextPart, /verify=/);
+    assert.match(payload.Messages[0].HTMLPart, /Verify email address/);
+  } finally {
+    for (const [key, value] of originalEnv) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("setup, sessions, CSRF protection, and server-enforced role permissions", async () => {
   const pool = new MemoryPool();
   const sentEmails = [];

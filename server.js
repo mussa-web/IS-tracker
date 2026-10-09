@@ -801,8 +801,10 @@ function hashEmailVerification(token) {
 function ensureEmailDelivery(options) {
   if (options.sendEmail) return;
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
-    throw httpError(503, "Email verification is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM in .env.");
+  const hasMailjetCredentials = process.env.MAILJET_API_KEY && process.env.MAILJET_API_SECRET;
+  const hasSmtpCredentials = SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS;
+  if (!SMTP_FROM || (!hasMailjetCredentials && !hasSmtpCredentials)) {
+    throw httpError(503, "Email verification is not configured. Set MAILJET_API_KEY, MAILJET_API_SECRET, and SMTP_FROM, or configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM.");
   }
 }
 
@@ -819,6 +821,10 @@ async function deliverVerificationEmail(options, user, token) {
     await options.sendEmail(message);
     return;
   }
+  if (process.env.MAILJET_API_KEY && process.env.MAILJET_API_SECRET) {
+    await deliverMailjetEmail(message, options.fetch || globalThis.fetch);
+    return;
+  }
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -829,15 +835,61 @@ async function deliverVerificationEmail(options, user, token) {
   try {
     await transporter.sendMail({ ...message, from: process.env.SMTP_FROM });
   } catch (error) {
-    console.error("Verification email delivery failed:", {
-      code: error.code || null,
-      command: error.command || null,
-      responseCode: error.responseCode || null,
-      host: process.env.SMTP_HOST || null,
-      port: Number(process.env.SMTP_PORT) || null,
-    });
+    logEmailDeliveryFailure(error, process.env.SMTP_HOST, Number(process.env.SMTP_PORT) || null);
     throw httpError(503, "Verification email could not be sent. Check SMTP settings and request a new verification link.");
   }
+}
+
+async function deliverMailjetEmail(message, fetchImpl) {
+  let response;
+  try {
+    const sender = parseEmailSender(process.env.SMTP_FROM);
+    response = await fetchImpl("https://api.mailjet.com/v3.1/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_API_SECRET}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        Messages: [{
+          From: sender,
+          To: [{ Email: message.to }],
+          Subject: message.subject,
+          TextPart: message.text,
+          HTMLPart: message.html,
+        }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const result = await response.json();
+    if (!response.ok || result.Messages?.[0]?.Status !== "success") {
+      const error = new Error("Mailjet rejected the verification email.");
+      error.code = "MAILJET_REJECTED";
+      error.responseCode = response.status;
+      throw error;
+    }
+  } catch (error) {
+    logEmailDeliveryFailure(error, "api.mailjet.com", 443);
+    throw httpError(503, "Verification email could not be sent. Check Mailjet API credentials and sender verification, then request a new verification link.");
+  }
+}
+
+function parseEmailSender(value) {
+  const match = value.trim().match(/^(?:(?:"([^"]+)"|([^<>]+?))\s*)?<([^<>]+)>$/);
+  if (match) {
+    return { Email: match[3].trim(), Name: (match[1] || match[2] || "Stockroom").trim() };
+  }
+  return { Email: value.trim(), Name: "Stockroom" };
+}
+
+function logEmailDeliveryFailure(error, host, port) {
+  console.error("Verification email delivery failed:", {
+    code: error.code || error.cause?.code || null,
+    command: error.command || null,
+    responseCode: error.responseCode || null,
+    host,
+    port,
+  });
 }
 
 async function issueAndSendVerification(pool, user, options) {
