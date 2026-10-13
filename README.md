@@ -64,7 +64,7 @@ Every protected operation is authorized by the server. Hiding a button in the in
 
 ## Performance and product profit
 
-The Overview date selector filters sales, transaction counts, items sold, and the revenue chart for a custom range of up to seven days. Admins and managers also see gross profit grouped by product and sale date. New sales preserve the product cost at the time of sale; older sales with a still-linked product use its current cost as an estimate. Profit excludes operating expenses, and costs for deleted products that cannot be recovered are shown as unavailable. Cashiers do not receive cost or profit data.
+The Overview date selector filters sales, transaction counts, items sold, and the revenue chart for a custom range of up to seven days. Admins and managers can record dated operating expenses and see gross profit by product/day plus net profit for the selected range (gross profit minus recorded operating expenses). New sales preserve product cost at the time of sale; older sales with a still-linked product use its current cost as an estimate. Costs for deleted products that cannot be recovered make profit unavailable for the affected range. Product costs are counted in gross profit, so do not enter inventory purchases again as operating expenses. Cashiers do not receive product-cost or expense data.
 
 ## Stock history
 

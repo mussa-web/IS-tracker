@@ -46,6 +46,15 @@ FROM products p
 WHERE p.id = s.product_id
   AND s.unit_cost IS NULL;
 
+CREATE TABLE IF NOT EXISTS expenses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  description varchar(120) NOT NULL,
+  amount numeric(12,2) NOT NULL CHECK (amount > 0),
+  expense_date date NOT NULL,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS http_sessions (
   sid varchar PRIMARY KEY,
   sess json NOT NULL,
@@ -146,6 +155,7 @@ CREATE INDEX IF NOT EXISTS products_name_idx ON products(name);
 CREATE INDEX IF NOT EXISTS sales_sold_at_idx ON sales(sold_at DESC);
 CREATE INDEX IF NOT EXISTS sales_product_id_idx ON sales(product_id);
 CREATE INDEX IF NOT EXISTS sales_sold_by_idx ON sales(sold_by, sold_at DESC);
+CREATE INDEX IF NOT EXISTS expenses_expense_date_idx ON expenses(expense_date DESC);
 CREATE INDEX IF NOT EXISTS http_sessions_expire_idx ON http_sessions(expire);
 CREATE INDEX IF NOT EXISTS email_verifications_expire_idx ON email_verifications(expires_at);
 CREATE INDEX IF NOT EXISTS stock_movements_created_at_idx ON stock_movements(created_at DESC, id DESC);

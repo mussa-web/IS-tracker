@@ -196,6 +196,24 @@
               </div>
               <div class="empty-state hidden" id="daily-profit-empty"><strong>No sales in this date range</strong><p>Daily product profit will appear here after sales are recorded.</p></div>
             </section>
+            <section class="panel expenses-panel manager-only">
+              <div class="panel-heading"><div><h2>Operating expenses</h2><p>Recorded expenses are subtracted from gross profit for net profit.</p></div><strong id="range-expense-total">TSh&nbsp;0</strong></div>
+              <form id="expense-form" class="expense-form">
+                <label class="field">Description<input id="expense-description" name="description" type="text" maxlength="120" placeholder="e.g. Electricity bill" required></label>
+                <label class="field">Amount (TSh)<input id="expense-amount" name="amount" type="number" min="0.01" step="0.01" required></label>
+                <label class="field">Date<input id="expense-date" name="date" type="date" required></label>
+                <button class="button button-primary" type="submit">Add expense</button>
+                <span class="field-error hidden" id="expense-error" role="alert"></span>
+              </form>
+              <p class="expense-note">Product costs are already included in gross profit. Do not enter inventory purchases here, or they will be counted twice.</p>
+              <div class="table-wrap">
+                <table class="expense-table hidden" id="expense-table">
+                  <thead><tr><th>DATE</th><th>DESCRIPTION</th><th class="align-right">AMOUNT</th></tr></thead>
+                  <tbody id="expense-body"></tbody>
+                </table>
+              </div>
+              <div class="empty-state hidden" id="expense-empty"><strong>No expenses in this date range</strong><p>Add operating expenses to include them in net profit.</p></div>
+            </section>
             <p class="data-note"><span>✓</span> Your data is saved automatically on this device.</p>
           </section>
 

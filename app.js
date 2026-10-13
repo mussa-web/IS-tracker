@@ -9,7 +9,7 @@
     { bg: "#eef4f5", fg: "#6f9ba0", icon: "▱" },
   ];
   const dayMs = 24 * 60 * 60 * 1000;
-  let data = { products: [], sales: [] };
+  let data = { products: [], sales: [], expenses: [] };
   let procurement = { suppliers: [], purchaseOrders: [] };
   let currentUser = null;
   let csrf = null;
@@ -90,7 +90,7 @@
 
   async function refreshData() {
     const result = await api("/api/bootstrap");
-    data = { products: result.products, sales: result.sales };
+    data = { products: result.products, sales: result.sales, expenses: result.expenses || [] };
     currentUser = result.user;
     csrf = result.csrfToken || csrf;
     renderAll();
@@ -226,20 +226,29 @@
     const rangeSales = getSalesInRange(data.sales, rangeStart, rangeEnd);
     const rangeRevenue = sum(rangeSales, (sale) => sale.total);
     const rangeItems = sum(rangeSales, (sale) => sale.quantity);
+    const unknownCostSales = rangeSales.filter((sale) => sale.unitCost == null).length;
     const rangeProfit = sum(rangeSales.filter((sale) => sale.unitCost != null), (sale) => sale.total - sale.quantity * sale.unitCost);
+    const rangeExpenses = data.expenses.filter((expense) => {
+      const date = expenseDateValue(expense.date);
+      return date >= dashboardStartDate && date <= dashboardEndDate;
+    });
+    const expenseTotal = sum(rangeExpenses, (expense) => expense.amount);
+    const netProfit = unknownCostSales ? null : rangeProfit - expenseTotal;
     const stockAlerts = lowStockProducts();
     const units = sum(data.products, (product) => product.stock);
     const dailySales = getDailySalesInRange(rangeStart, rangeEnd, data.sales);
     const rangeLabel = dashboardStartDate === dashboardEndDate
       ? formatDate(rangeStart, { month: "short", day: "numeric", year: "numeric" })
       : `${formatDate(rangeStart, { month: "short", day: "numeric" })} – ${formatDate(rangeEnd, { month: "short", day: "numeric", year: "numeric" })}`;
-    const unknownCostSales = rangeSales.filter((sale) => sale.unitCost == null).length;
+    const profitLabel = unknownCostSales ? "Unavailable" : money(rangeProfit);
+    const netProfitLabel = netProfit == null ? "Unavailable" : money(netProfit);
 
     renderMetrics("dashboard-metrics", [
       metricCard("Sales", money(rangeRevenue), '<svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15l3.2-3.5 3 2 5.3-6"/></svg>', "", rangeLabel),
       metricCard("Transactions", number(rangeSales.length), '<svg viewBox="0 0 24 24"><path d="M6 3h12l2 4v14H4V7l2-4Z"/><path d="M4 7h16M9 11h6"/></svg>', "purple", `${number(rangeItems)} items sold`),
       metricCard("Items sold", number(rangeItems), '<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4.5 7.2 7.5 3.9 7.5-3.9M12 11v9.5"/></svg>', "blue", rangeLabel),
-      metricCard("Gross profit", money(rangeProfit), '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M16 8H9.5a2 2 0 0 0 0 4h5a2 2 0 0 1 0 4H8"/></svg>', "orange", `${rangeLabel}${unknownCostSales ? ` · ${number(unknownCostSales)} cost unavailable` : ""}`, `manager-only${currentUser.role === "cashier" ? " hidden" : ""}`),
+      metricCard("Gross profit", profitLabel, '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M16 8H9.5a2 2 0 0 0 0 4h5a2 2 0 0 1 0 4H8"/></svg>', "orange", `${rangeLabel}${unknownCostSales ? ` · ${number(unknownCostSales)} cost unavailable` : ""}`, `manager-only${currentUser.role === "cashier" ? " hidden" : ""}`),
+      metricCard("Net profit", netProfitLabel, '<svg viewBox="0 0 24 24"><path d="M4 18h16M6 14l4-4 3 2 5-6"/><path d="M15 6h3v3"/></svg>', "blue", `Gross profit less expenses${unknownCostSales ? " · cost unavailable" : ""}`, `manager-only${currentUser.role === "cashier" ? " hidden" : ""}`),
     ]);
 
     byId("chart-total").textContent = money(rangeRevenue);
@@ -247,6 +256,7 @@
     renderChart("revenue-chart", "chart-y-axis", "chart-x-axis", dailySales);
     byId("chart-x-axis").style.gridTemplateColumns = `repeat(${dailySales.length}, minmax(0, 1fr))`;
     renderDailyProductProfit(rangeSales, data.products);
+    renderExpenses(rangeExpenses, expenseTotal);
 
     byId("stock-alert-list").innerHTML = stockAlerts.length
       ? stockAlerts.slice(0, 4).map((product) => `<div class="stock-alert-item">${productIcon(product.name, "product-mini-icon")}<div class="product-mini-copy"><strong>${escapeHtml(product.name)}</strong><span class="${product.stock === 0 ? "stock-critical" : "stock-warning"}">${product.stock === 0 ? "Out of stock" : `Only ${number(product.stock)} left`}</span></div><span class="stock-item-count">${number(product.stock)} / ${number(product.reorderLevel)} min</span></div>`).join("")
@@ -271,6 +281,20 @@
   function parseLocalDate(value) {
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
+  }
+
+  function expenseDateValue(value) {
+    return value instanceof Date ? localDateInputValue(value) : String(value).slice(0, 10);
+  }
+
+  function renderExpenses(expenses, total) {
+    const ordered = [...expenses].sort((a, b) => expenseDateValue(b.date).localeCompare(expenseDateValue(a.date)));
+    byId("range-expense-total").textContent = money(total);
+    byId("expense-body").innerHTML = ordered.map((expense) => `
+      <tr><td>${escapeHtml(formatDate(parseLocalDate(expenseDateValue(expense.date)), { month: "short", day: "numeric", year: "numeric" }))}</td>
+      <td>${escapeHtml(expense.description)}</td><td class="align-right">${money(expense.amount)}</td></tr>`).join("");
+    byId("expense-empty").classList.toggle("hidden", ordered.length > 0);
+    byId("expense-table").classList.toggle("hidden", ordered.length === 0);
   }
 
   function initializeDashboardRange() {
@@ -975,6 +999,33 @@
 
   byId("dashboard-start-date").addEventListener("change", applyDashboardRange);
   byId("dashboard-end-date").addEventListener("change", applyDashboardRange);
+
+  byId("expense-date").value = localDateInputValue(new Date());
+  byId("expense-date").max = localDateInputValue(new Date());
+  byId("expense-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const description = byId("expense-description").value.trim();
+    const amount = Number(byId("expense-amount").value);
+    const date = byId("expense-date").value;
+    const errorElement = byId("expense-error");
+    if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || !date) {
+      errorElement.textContent = "Enter a description, a positive amount, and a valid expense date.";
+      errorElement.classList.remove("hidden");
+      return;
+    }
+    try {
+      await api("/api/expenses", { method: "POST", body: { description, amount, date } });
+      byId("expense-form").reset();
+      byId("expense-date").value = localDateInputValue(new Date());
+      errorElement.textContent = "";
+      errorElement.classList.add("hidden");
+      await refreshData();
+      showToast("Expense recorded.");
+    } catch (error) {
+      errorElement.textContent = error.message;
+      errorElement.classList.remove("hidden");
+    }
+  });
 
   byId("adjustment-form").addEventListener("submit", async (event) => {
     event.preventDefault();

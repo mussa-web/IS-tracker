@@ -256,10 +256,22 @@ function createApp(pool, options = {}) {
        ORDER BY s.sold_at DESC`,
       req.user.role === "cashier" ? [req.user.id] : [],
     );
+    const expensesResult = revealCost
+      ? await pool.query("SELECT id, description, amount, expense_date, created_at FROM expenses ORDER BY expense_date DESC, created_at DESC")
+      : { rows: [] };
     res.json({
       user: publicUser(req.user),
       products: productsResult.rows.map((row) => mapProduct(row, revealCost)),
       sales: salesResult.rows.map((row) => mapSale(row, revealCost)),
+      ...(revealCost ? {
+        expenses: expensesResult.rows.map((row) => ({
+          id: row.id,
+          description: row.description,
+          amount: Number(row.amount),
+          date: row.expense_date,
+          createdAt: row.created_at,
+        })),
+      } : {}),
       csrfToken: csrfToken(req),
     });
   }));
@@ -362,6 +374,26 @@ function createApp(pool, options = {}) {
       throw error;
     }
     res.status(201).json({ supplier: rows[0] });
+  }));
+
+  app.post("/api/expenses", requireCsrf, requireAuth(pool), requireRole("admin", "manager"), asyncRoute(async (req, res) => {
+    const expense = validateExpense(req.body);
+    const { rows } = await pool.query(
+      `INSERT INTO expenses (description, amount, expense_date, created_by)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, description, amount, expense_date, created_at`,
+      [expense.description, expense.amount, expense.date, req.user.id],
+    );
+    const row = rows[0];
+    res.status(201).json({
+      expense: {
+        id: row.id,
+        description: row.description,
+        amount: Number(row.amount),
+        date: row.expense_date,
+        createdAt: row.created_at,
+      },
+    });
   }));
 
   app.patch("/api/suppliers/:id", requireCsrf, requireAuth(pool), requireRole("admin", "manager"), asyncRoute(async (req, res) => {
@@ -988,6 +1020,23 @@ function validateSupplier(body) {
     email: email ? validEmail(email) : null,
     phone: optionalText(body.phone, "Phone", 40),
     address: optionalText(body.address, "Address", 240),
+  };
+}
+
+function validateExpense(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw httpError(400, "Expense details are required.");
+  const date = body.date;
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw httpError(400, "Expense date must be a valid calendar date.");
+  }
+  const parsedDate = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+    throw httpError(400, "Expense date must be a valid calendar date.");
+  }
+  return {
+    description: text(body.description, "Expense description", 120),
+    amount: amount(body.amount, "Expense amount", false),
+    date,
   };
 }
 

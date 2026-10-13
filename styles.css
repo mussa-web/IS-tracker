@@ -132,6 +132,16 @@ h1 { margin-bottom: 6px; font: 700 calc(var(--font-scale, 1) * 25px)/1.25 "Segoe
 .daily-profit-table { min-width: 680px; }
 .daily-profit-table td { white-space: nowrap; }
 .daily-profit-panel .empty-state { min-height: 150px; }
+.expenses-panel { margin-top: 14px; padding: 17px 18px 0; }
+.expenses-panel .panel-heading { align-items: center; margin-bottom: 14px; }
+.expenses-panel .panel-heading > strong { font-size: calc(var(--font-scale, 1) * 14px); white-space: nowrap; }
+.expense-form { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(120px, 1fr) minmax(140px, 1fr) auto; align-items: end; gap: 10px; }
+.expense-form .field input { width: 100%; height: 36px; padding: 0 9px; color: #454a55; background: #fff; border: 1px solid #e7e9ec; border-radius: 5px; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 400; }
+.expense-form .field-error { grid-column: 1/-1; color: #bf5e5b; }
+.expense-note { margin: 10px 0 13px; color: #a0a4ad; font-size: calc(var(--font-scale, 1) * 9px); line-height: 1.5; }
+.expenses-panel .table-wrap { margin: 0 -18px; }
+.expense-table { min-width: 430px; }
+.expenses-panel .empty-state { min-height: 130px; }
 .revenue-panel,.stock-panel,.value-panel { padding: 17px 18px; }
 .recent-panel { padding: 17px 0 0; }
 .recent-panel .panel-heading { padding: 0 18px; }
@@ -358,6 +368,7 @@ html[data-theme="dark"] .button-secondary { color: #c3c8d1; background: #242830;
 html[data-theme="dark"] .field input,
 html[data-theme="dark"] .field select { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .dashboard-period input { color: var(--ink); background: #1d2027; border-color: var(--line); }
+html[data-theme="dark"] .expense-form .field input { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .order-line,
 html[data-theme="dark"] .receipt-line,
 html[data-theme="dark"] .sale-total { color: #c3c8d1; background: #1d2027; border-color: var(--line); }
@@ -439,6 +450,12 @@ html[data-theme="dark"] .settings-choice[aria-pressed="true"] { color: #83d0ac; 
   .daily-profit-panel { margin-top: 11px; padding: 15px 13px 0; }
   .daily-profit-panel .table-wrap { margin-right: -13px; margin-left: -13px; }
   .daily-profit-panel .panel-heading { padding: 0; }
+  .expenses-panel { margin-top: 11px; padding: 15px 13px 0; }
+  .expenses-panel .table-wrap { margin-right: -13px; margin-left: -13px; }
+  .expense-form { grid-template-columns: 1fr 1fr; }
+  .expense-form .field:first-child { grid-column: 1/-1; }
+  .expense-form > .button { grid-column: 1/-1; }
+  .expenses-panel .panel-heading { padding: 0; }
   .heading-actions { width: 100%; }
   .heading-actions .button { flex: 1; }
   h1 { font-size: calc(var(--font-scale, 1) * 23px); }

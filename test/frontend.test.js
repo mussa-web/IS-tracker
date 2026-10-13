@@ -21,6 +21,7 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   let csrf = "anonymous-token";
   let productList = [];
   let sales = [];
+  let expenses = [];
   let movements = [];
   let suppliers = [];
   let purchaseOrders = [];
@@ -59,7 +60,13 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
       return { ok: true, status: 200, json: async () => ({
         user: currentUser, csrfToken: csrf, products,
         sales: currentUser.role === "cashier" ? visibleSales.map(({ unitCost, ...sale }) => sale) : visibleSales,
+        ...(currentUser.role === "cashier" ? {} : { expenses }),
       }) };
+    }
+    if (url === "/api/expenses" && method === "POST") {
+      const expense = { ...body, id: `expense-${expenses.length + 1}`, amount: Number(body.amount), createdAt: new Date().toISOString() };
+      expenses.unshift(expense);
+      return { ok: true, status: 201, json: async () => ({ expense }) };
     }
     if (url.startsWith("/api/stock-movements?")) {
       const params = new URLSearchParams(url.split("?")[1]);
@@ -197,6 +204,14 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*25/);
   assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*17/);
   assert.match(window.document.getElementById("daily-profit-body").textContent, /Desk lamp[\s\S]*TSh\s*8[\s\S]*TSh\s*17/);
+  window.document.getElementById("expense-description").value = "Electricity bill";
+  window.document.getElementById("expense-amount").value = "5";
+  window.document.getElementById("expense-date").value = new Date().toISOString().slice(0, 10);
+  window.document.getElementById("expense-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await waitFor(() => expenses.length === 1 && window.document.getElementById("toast-region").textContent.includes("Expense recorded"));
+  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*12/);
+  assert.match(window.document.getElementById("expense-body").textContent, /Electricity bill[\s\S]*TSh\s*5/);
+  assert.match(window.document.getElementById("range-expense-total").textContent, /TSh\s*5/);
   assert.equal(window.document.getElementById("chart-x-axis").children.length, 7);
   const startDateInput = window.document.getElementById("dashboard-start-date");
   const endDateInput = window.document.getElementById("dashboard-end-date");
@@ -204,7 +219,7 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   startDateInput.value = endDateInput.value;
   startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(window.document.getElementById("chart-x-axis").children.length, 1, "a one-day range draws one daily data point");
-  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*25/);
+  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*12/);
   startDateInput.value = selectedStart;
   startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
   assert.equal(window.document.getElementById("chart-x-axis").children.length, 7);
@@ -287,6 +302,7 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   assert.equal(window.document.querySelector('[data-action="add-product"]').classList.contains("hidden"), true);
   assert.equal(window.document.querySelector("#dashboard-metrics .manager-only").classList.contains("hidden"), true);
   assert.equal(window.document.querySelector(".daily-profit-panel").classList.contains("hidden"), true);
+  assert.equal(window.document.querySelector(".expenses-panel").classList.contains("hidden"), true);
   assert.equal(window.document.getElementById("inventory-body").querySelector("tr").children.length, 6);
   window.document.querySelector('[data-page="settings"]').click();
   assert.equal(window.document.getElementById("page-settings").classList.contains("active"), true);
