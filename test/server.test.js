@@ -266,11 +266,15 @@ class MemoryPool {
     }
     if (sql.startsWith("SELECT s.id, s.product_id")) {
       const sales = this.sales.filter((sale) => !sql.includes("WHERE s.sold_by = $1") || sale.sold_by === values[0]);
-      return { rows: sales.map((sale) => ({ ...sale, seller_name: this.users.find((user) => user.id === sale.sold_by)?.name || null })), rowCount: sales.length };
+      return { rows: sales.map((sale) => ({
+        ...sale,
+        unit_cost: sql.includes("COALESCE(s.unit_cost, p.cost)") ? sale.unit_cost ?? this.products.find((product) => product.id === sale.product_id)?.cost ?? null : null,
+        seller_name: this.users.find((user) => user.id === sale.sold_by)?.name || null,
+      })), rowCount: sales.length };
     }
-    if (sql.startsWith("SELECT id, name, stock FROM products WHERE id = $1 FOR UPDATE")) {
+    if (sql.startsWith("SELECT id, name, stock") && sql.includes("FROM products WHERE id = $1 FOR UPDATE")) {
       const product = this.products.find((item) => item.id === values[0]);
-      return { rows: product ? [{ id: product.id, name: product.name, stock: product.stock }] : [], rowCount: product ? 1 : 0 };
+      return { rows: product ? [{ id: product.id, name: product.name, stock: product.stock, cost: product.cost }] : [], rowCount: product ? 1 : 0 };
     }
     if (sql.startsWith("UPDATE products SET stock = stock - $1")) {
       const product = this.products.find((item) => item.id === values[1]);
@@ -293,7 +297,7 @@ class MemoryPool {
       this.movements.push(movement);
       return { rows: [{ ...movement }], rowCount: 1 };
     }
-    if (sql.startsWith("INSERT INTO sales (product_id, product_name, quantity, unit_price, sold_by)")) {
+    if (sql.startsWith("INSERT INTO sales (product_id, product_name, quantity, unit_price, unit_cost, sold_by)")) {
       const product = this.products.find((item) => item.id === values[0]);
       const sale = {
         id: crypto.randomUUID(),
@@ -301,23 +305,24 @@ class MemoryPool {
         product_name: values[1],
         quantity: values[2],
         unit_price: values[3],
+        unit_cost: values[4],
         total: values[2] * values[3],
-        sold_by: values[4],
+        sold_by: values[5],
         sold_at: new Date(),
       };
       this.sales.push(sale);
       this.movements.push({
         id: crypto.randomUUID(), product_id: product.id, product_name: product.name,
         change_quantity: -values[2], stock_after: product.stock, reason: "Sale",
-        performed_by: values[4], created_at: sale.sold_at,
+        performed_by: values[5], created_at: sale.sold_at,
       });
       return { rows: [{ ...sale }], rowCount: 1 };
     }
-    if (sql.startsWith("INSERT INTO sales (product_id, product_name, quantity, unit_price, sold_by, sold_at)")) {
+    if (sql.startsWith("INSERT INTO sales (product_id, product_name, quantity, unit_price, unit_cost, sold_by, sold_at)")) {
       this.sales.push({
         id: crypto.randomUUID(), product_id: values[0], product_name: values[1],
-        quantity: values[2], unit_price: values[3], total: values[2] * values[3],
-        sold_by: values[4], sold_at: values[5],
+        quantity: values[2], unit_price: values[3], unit_cost: values[4], total: values[2] * values[3],
+        sold_by: values[5], sold_at: values[6],
       });
       return { rows: [], rowCount: 1 };
     }
@@ -412,6 +417,7 @@ test("setup, sessions, CSRF protection, and server-enforced role permissions", a
   assert.equal(sentEmails.length, 1);
   assert.equal(pool.products.length, 1);
   assert.equal(pool.sales.length, 1);
+  assert.equal(pool.sales[0].unit_cost, productBody.cost, "legacy imports snapshot the linked product cost");
   assert.equal(pool.products[0].stock, 5, "import preserves already-decremented inventory levels");
   const unverifiedToken = new URL(sentEmails[0].text.match(/http:\/\/localhost:8000\/\?verify=[^\s]+/)[0]).searchParams.get("verify");
   const unverifiedLogin = await admin.post("/api/auth/login")
@@ -502,6 +508,8 @@ test("setup, sessions, CSRF protection, and server-enforced role permissions", a
     .send({ productId: cashierData.body.products[0].id, quantity: 2, unitPrice: 20.25 })
     .expect(201);
   assert.equal(sale.body.sale.total, 40.5);
+  assert.equal(sale.body.sale.unitCost, undefined, "cashiers do not receive sale cost snapshots");
+  assert.equal(pool.sales.at(-1).unit_cost, 9.5, "sales snapshot the current product cost");
   assert.equal(pool.products.find((product) => product.id === cashierData.body.products[0].id).stock, 3);
   await cashier.get("/api/stock-movements").expect(403);
   await cashier.get("/api/exports/products.csv").expect(403);
@@ -516,8 +524,16 @@ test("setup, sessions, CSRF protection, and server-enforced role permissions", a
     .send({ productId: cashierData.body.products[0].id, quantity: 4, unitPrice: 20.25 })
     .expect(409);
   assert.equal(pool.products.find((product) => product.id === cashierData.body.products[0].id).stock, 3);
-  assert.equal((await cashier.get("/api/bootstrap").expect(200)).body.sales.length, 1);
+  const cashierBootstrap = (await cashier.get("/api/bootstrap").expect(200)).body;
+  assert.equal(cashierBootstrap.sales.length, 1);
+  assert.equal(cashierBootstrap.sales[0].unitCost, undefined, "cashier bootstrap excludes sale cost snapshots");
   assert.equal((await admin.get("/api/bootstrap").expect(200)).body.sales.length, 2);
+  const managerSales = (await manager.get("/api/bootstrap").expect(200)).body.sales;
+  assert.ok(managerSales.every((item) => item.unitCost === 9.5), "managers receive cost data for profit reporting");
+  const importedSale = pool.sales.find((item) => item.sold_by === pool.users.find((user) => user.role === "admin").id);
+  importedSale.unit_cost = null;
+  const historicalSales = (await manager.get("/api/bootstrap").expect(200)).body.sales;
+  assert.equal(historicalSales.find((item) => item.id === importedSale.id).unitCost, 9.5, "legacy sales fall back to the linked product's current cost");
   await admin.patch(`/api/users/${managerResult.body.user.id}`)
     .set("X-CSRF-Token", csrf)
     .send({ active: false })
@@ -662,6 +678,8 @@ test("PostgreSQL schema explicitly creates the session table without removed OID
   assert.match(schema, /CREATE TABLE IF NOT EXISTS suppliers/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS purchase_orders/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS purchase_order_receipts/);
+  assert.match(schema, /ADD COLUMN IF NOT EXISTS unit_cost numeric\(12,2\)/);
+  assert.match(schema, /SET unit_cost = p\.cost/);
   assert.doesNotMatch(schema, /WITH\s*\(\s*OIDS/i);
 });
 

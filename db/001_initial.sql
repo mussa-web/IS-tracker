@@ -32,10 +32,19 @@ CREATE TABLE IF NOT EXISTS sales (
   product_name varchar(80) NOT NULL,
   quantity integer NOT NULL CHECK (quantity > 0),
   unit_price numeric(12,2) NOT NULL CHECK (unit_price > 0),
+  unit_cost numeric(12,2) CHECK (unit_cost >= 0),
   total numeric(14,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
   sold_by uuid REFERENCES users(id) ON DELETE SET NULL,
   sold_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS unit_cost numeric(12,2) CHECK (unit_cost >= 0);
+
+UPDATE sales s
+SET unit_cost = p.cost
+FROM products p
+WHERE p.id = s.product_id
+  AND s.unit_cost IS NULL;
 
 CREATE TABLE IF NOT EXISTS http_sessions (
   sid varchar PRIMARY KEY,

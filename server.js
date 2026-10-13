@@ -58,13 +58,14 @@ function mapProduct(row, revealCost) {
   };
 }
 
-function mapSale(row) {
+function mapSale(row, revealCost) {
   return {
     id: row.id,
     productId: row.product_id,
     productName: row.product_name,
     quantity: row.quantity,
     unitPrice: Number(row.unit_price),
+    ...(revealCost ? { unitCost: row.unit_cost == null ? null : Number(row.unit_cost) } : {}),
     total: Number(row.total),
     date: row.sold_at,
     soldBy: row.sold_by,
@@ -247,8 +248,10 @@ function createApp(pool, options = {}) {
     const revealCost = req.user.role !== "cashier";
     const productsResult = await pool.query("SELECT id, name, sku, category, price, cost, stock, reorder_level, created_at FROM products ORDER BY name");
     const salesResult = await pool.query(
-      `SELECT s.id, s.product_id, s.product_name, s.quantity, s.unit_price, s.total, s.sold_by, s.sold_at, u.name AS seller_name
+      `SELECT s.id, s.product_id, s.product_name, s.quantity, s.unit_price, s.total, s.sold_by, s.sold_at, u.name AS seller_name,
+              ${revealCost ? "COALESCE(s.unit_cost, p.cost) AS unit_cost" : "NULL AS unit_cost"}
        FROM sales s LEFT JOIN users u ON u.id = s.sold_by
+       LEFT JOIN products p ON p.id = s.product_id
        ${req.user.role === "cashier" ? "WHERE s.sold_by = $1" : ""}
        ORDER BY s.sold_at DESC`,
       req.user.role === "cashier" ? [req.user.id] : [],
@@ -256,7 +259,7 @@ function createApp(pool, options = {}) {
     res.json({
       user: publicUser(req.user),
       products: productsResult.rows.map((row) => mapProduct(row, revealCost)),
-      sales: salesResult.rows.map(mapSale),
+      sales: salesResult.rows.map((row) => mapSale(row, revealCost)),
       csrfToken: csrfToken(req),
     });
   }));
@@ -682,7 +685,7 @@ function createApp(pool, options = {}) {
     try {
       await client.query("BEGIN");
       const productResult = await client.query(
-        "SELECT id, name, stock FROM products WHERE id = $1 FOR UPDATE",
+        "SELECT id, name, stock, cost FROM products WHERE id = $1 FOR UPDATE",
         [productId],
       );
       const product = productResult.rows[0];
@@ -695,10 +698,10 @@ function createApp(pool, options = {}) {
         [product.id, product.name, -quantity, product.stock - quantity, req.user.id],
       );
       result = await client.query(
-        `INSERT INTO sales (product_id, product_name, quantity, unit_price, sold_by)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, product_id, product_name, quantity, unit_price, total, sold_by, sold_at`,
-        [product.id, product.name, quantity, unitPrice, req.user.id],
+        `INSERT INTO sales (product_id, product_name, quantity, unit_price, unit_cost, sold_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, product_id, product_name, quantity, unit_price, unit_cost, total, sold_by, sold_at`,
+        [product.id, product.name, quantity, unitPrice, product.cost, req.user.id],
       );
       await client.query("COMMIT");
     } catch (error) {
@@ -707,7 +710,7 @@ function createApp(pool, options = {}) {
     } finally {
       client.release();
     }
-    res.status(201).json({ sale: mapSale(result.rows[0]) });
+    res.status(201).json({ sale: mapSale(result.rows[0], req.user.role !== "cashier") });
   }));
 
   app.get("/api/users", requireAuth(pool), requireRole("admin"), asyncRoute(async (_req, res) => {
@@ -1100,7 +1103,7 @@ async function importLegacyData(client, legacyData, userId) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [product.name, product.sku, product.category, product.price, product.cost, product.stock, product.reorderLevel, userId],
     );
-    productIds.set(product.legacyId, rows[0].id);
+    productIds.set(product.legacyId, { id: rows[0].id, cost: product.cost });
     if (product.stock > 0) {
       await client.query(
         `INSERT INTO stock_movements (product_id, product_name, change_quantity, stock_after, reason, performed_by)
@@ -1110,11 +1113,11 @@ async function importLegacyData(client, legacyData, userId) {
     }
   }
   for (const sale of legacyData.sales) {
-    const productId = productIds.get(sale.productId);
+    const product = productIds.get(sale.productId);
     await client.query(
-      `INSERT INTO sales (product_id, product_name, quantity, unit_price, sold_by, sold_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [productId, sale.productName, sale.quantity, sale.unitPrice, userId, sale.soldAt],
+      `INSERT INTO sales (product_id, product_name, quantity, unit_price, unit_cost, sold_by, sold_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [product.id, sale.productName, sale.quantity, sale.unitPrice, product.cost, userId, sale.soldAt],
     );
   }
 }

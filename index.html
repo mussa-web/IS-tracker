@@ -130,7 +130,7 @@
               <div>
                 <p class="eyebrow" id="today-label">YOUR STORE AT A GLANCE</p>
                 <h1><span id="greeting-text">Good morning</span> <span class="wave" aria-hidden="true">✳</span></h1>
-                <p class="heading-subtitle">Here’s what’s happening with your store today.</p>
+                <p class="heading-subtitle">Track your store’s performance across a custom date range.</p>
               </div>
               <div class="heading-actions">
                 <button class="button button-secondary manager-only" type="button" data-action="add-product"><span class="button-plus">+</span> Add product</button>
@@ -138,13 +138,21 @@
               </div>
             </div>
 
+            <div class="dashboard-period" aria-label="Overview date range">
+              <label for="dashboard-start-date">From</label>
+              <input id="dashboard-start-date" type="date" aria-label="Start date">
+              <label for="dashboard-end-date">To</label>
+              <input id="dashboard-end-date" type="date" aria-label="End date">
+              <span class="dashboard-period-note">Choose up to 7 days</span>
+              <span class="field-error hidden" id="dashboard-period-error" role="alert"></span>
+            </div>
+
             <div class="metrics-grid" id="dashboard-metrics"></div>
 
             <div class="dashboard-grid">
               <section class="panel revenue-panel">
                 <div class="panel-heading">
-                  <div><h2>Revenue over time</h2><p>Your sales performance this week</p></div>
-                  <button class="period-select" type="button" aria-label="Chart period">Last 7 days <span>⌄</span></button>
+                  <div><h2>Revenue over time</h2><p>Daily sales within the selected range</p></div>
                 </div>
                 <div class="chart-summary"><strong id="chart-total">TSh 0</strong><span class="chart-range" id="chart-range">This week</span></div>
                 <div class="chart-wrap"><div class="chart-y-axis" id="chart-y-axis"></div><svg class="revenue-chart" id="revenue-chart" role="img" aria-label="Daily sales revenue chart"></svg></div>
@@ -178,6 +186,16 @@
                 <div class="value-foot"><span><i class="tiny-dot orange-dot"></i> Low stock items</span><strong id="low-stock-count">0</strong></div>
               </section>
             </div>
+            <section class="panel daily-profit-panel manager-only">
+              <div class="panel-heading"><div><h2>Daily product profit</h2><p>Gross profit by product and sale date · before operating expenses</p></div></div>
+              <div class="table-wrap">
+                <table class="daily-profit-table hidden" id="daily-profit-table">
+                  <thead><tr><th>DATE</th><th>PRODUCT</th><th>ITEMS</th><th>REVENUE</th><th>COST</th><th class="align-right">GROSS PROFIT</th></tr></thead>
+                  <tbody id="daily-profit-body"></tbody>
+                </table>
+              </div>
+              <div class="empty-state hidden" id="daily-profit-empty"><strong>No sales in this date range</strong><p>Daily product profit will appear here after sales are recorded.</p></div>
+            </section>
             <p class="data-note"><span>✓</span> Your data is saved automatically on this device.</p>
           </section>
 

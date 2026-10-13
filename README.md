@@ -62,6 +62,10 @@ On an existing Stockroom browser, first-admin setup offers an explicit opt-in to
 
 Every protected operation is authorized by the server. Hiding a button in the interface is not the access-control boundary. Cashiers do not receive product cost data.
 
+## Performance and product profit
+
+The Overview date selector filters sales, transaction counts, items sold, and the revenue chart for a custom range of up to seven days. Admins and managers also see gross profit grouped by product and sale date. New sales preserve the product cost at the time of sale; older sales with a still-linked product use its current cost as an estimate. Profit excludes operating expenses, and costs for deleted products that cannot be recovered are shown as unavailable. Cashiers do not receive cost or profit data.
+
 ## Stock history
 
 Admins and managers can open **Stock history** to review stock additions, removals, and sales, including who recorded each change and the resulting balance. Use **Adjust stock** in Inventory for restocks, customer returns, corrections, or damaged/lost units; direct stock edits are disabled when editing product details so every adjustment has a reason. New products with opening stock are recorded automatically. On startup, existing products with stock are recorded once as opening balances, and the history page can load older entries in batches.

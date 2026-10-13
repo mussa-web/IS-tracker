@@ -55,7 +55,11 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
       const products = currentUser.role === "cashier"
         ? productList.map((product) => ({ ...product, cost: null }))
         : productList;
-      return { ok: true, status: 200, json: async () => ({ user: currentUser, csrfToken: csrf, products, sales: currentUser.role === "cashier" ? sales.filter((sale) => sale.soldBy === currentUser.id) : sales }) };
+      const visibleSales = currentUser.role === "cashier" ? sales.filter((sale) => sale.soldBy === currentUser.id) : sales;
+      return { ok: true, status: 200, json: async () => ({
+        user: currentUser, csrfToken: csrf, products,
+        sales: currentUser.role === "cashier" ? visibleSales.map(({ unitCost, ...sale }) => sale) : visibleSales,
+      }) };
     }
     if (url.startsWith("/api/stock-movements?")) {
       const params = new URLSearchParams(url.split("?")[1]);
@@ -132,7 +136,7 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
       if (!product || product.stock < body.quantity) return { ok: false, status: 409, json: async () => ({ error: "Insufficient stock" }) };
       product.stock -= body.quantity;
       const date = new Date().toISOString();
-      sales.push({ id: "sale-1", productId: product.id, productName: product.name, quantity: body.quantity, unitPrice: body.unitPrice, total: body.quantity * body.unitPrice, date, soldBy: currentUser.id });
+      sales.push({ id: "sale-1", productId: product.id, productName: product.name, quantity: body.quantity, unitPrice: body.unitPrice, unitCost: product.cost, total: body.quantity * body.unitPrice, date, soldBy: currentUser.id });
       movements.push({ id: "sale-movement-1", productId: product.id, productName: product.name, change: -body.quantity, stockAfter: product.stock, reason: "Sale", date, performedBy: currentUser.name });
       return { ok: true, status: 201, json: async () => ({ sale: sales[sales.length - 1] }) };
     }
@@ -190,6 +194,28 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   window.document.getElementById("sale-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   await waitFor(() => sales.length === 1 && productList[0].stock === 3 && window.document.getElementById("toast-region").textContent.includes("Sale recorded"));
   assert.equal(sales[0].total, 25);
+  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*25/);
+  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*17/);
+  assert.match(window.document.getElementById("daily-profit-body").textContent, /Desk lamp[\s\S]*TSh\s*8[\s\S]*TSh\s*17/);
+  assert.equal(window.document.getElementById("chart-x-axis").children.length, 7);
+  const startDateInput = window.document.getElementById("dashboard-start-date");
+  const endDateInput = window.document.getElementById("dashboard-end-date");
+  const selectedStart = startDateInput.value;
+  startDateInput.value = endDateInput.value;
+  startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(window.document.getElementById("chart-x-axis").children.length, 1, "a one-day range draws one daily data point");
+  assert.match(window.document.getElementById("dashboard-metrics").textContent, /TSh\s*25/);
+  startDateInput.value = selectedStart;
+  startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(window.document.getElementById("chart-x-axis").children.length, 7);
+  const tooEarly = new Date(`${endDateInput.value}T00:00:00`);
+  tooEarly.setDate(tooEarly.getDate() - 7);
+  startDateInput.value = `${tooEarly.getFullYear()}-${String(tooEarly.getMonth() + 1).padStart(2, "0")}-${String(tooEarly.getDate()).padStart(2, "0")}`;
+  startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.match(window.document.getElementById("dashboard-period-error").textContent, /7 days or less/);
+  startDateInput.value = selectedStart;
+  startDateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(window.document.getElementById("dashboard-period-error").classList.contains("hidden"), true);
 
   window.document.querySelector('[data-page="inventory"]').click();
   window.document.querySelector('[data-action="adjust-stock"]').click();
@@ -259,6 +285,8 @@ test("browser UI completes setup, inventory, sale, logout, and a fresh role-base
   assert.equal(window.document.querySelector('[data-page="movements"]').classList.contains("hidden"), true);
   assert.equal(window.document.getElementById("page-reports").classList.contains("hidden"), true);
   assert.equal(window.document.querySelector('[data-action="add-product"]').classList.contains("hidden"), true);
+  assert.equal(window.document.querySelector("#dashboard-metrics .manager-only").classList.contains("hidden"), true);
+  assert.equal(window.document.querySelector(".daily-profit-panel").classList.contains("hidden"), true);
   assert.equal(window.document.getElementById("inventory-body").querySelector("tr").children.length, 6);
   window.document.querySelector('[data-page="settings"]').click();
   assert.equal(window.document.getElementById("page-settings").classList.contains("active"), true);

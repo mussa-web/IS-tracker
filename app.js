@@ -18,6 +18,8 @@
   let movementOffset = 0;
   let movementHasMore = false;
   let activeReceiptOrderId = null;
+  let dashboardStartDate = null;
+  let dashboardEndDate = null;
   const verificationToken = new URLSearchParams(window.location.search).get("verify");
   const displayPreferenceKey = "stockroom-display-preferences";
   let toastTimer;
@@ -201,8 +203,8 @@
     }
   }
 
-  function metricCard(label, value, icon, tone, foot) {
-    return `<article class="metric-card"><div class="metric-top"><span>${label}</span><span class="metric-icon ${tone || ""}">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-foot">${foot}</div></article>`;
+  function metricCard(label, value, icon, tone, foot, className = "") {
+    return `<article class="metric-card ${className}"><div class="metric-top"><span>${label}</span><span class="metric-icon ${tone || ""}">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-foot">${foot}</div></article>`;
   }
 
   function renderMetrics(targetId, cards) {
@@ -218,31 +220,33 @@
 
   function renderDashboard() {
     updateDashboardGreeting();
-    const todaysSales = salesSince(1);
-    const lastSevenDays = salesSince(7);
-    const todaysRevenue = sum(todaysSales, (sale) => sale.total);
-    const weekRevenue = sum(lastSevenDays, (sale) => sale.total);
+    initializeDashboardRange();
+    const rangeStart = parseLocalDate(dashboardStartDate);
+    const rangeEnd = parseLocalDate(dashboardEndDate);
+    const rangeSales = getSalesInRange(data.sales, rangeStart, rangeEnd);
+    const rangeRevenue = sum(rangeSales, (sale) => sale.total);
+    const rangeItems = sum(rangeSales, (sale) => sale.quantity);
+    const rangeProfit = sum(rangeSales.filter((sale) => sale.unitCost != null), (sale) => sale.total - sale.quantity * sale.unitCost);
     const stockAlerts = lowStockProducts();
     const units = sum(data.products, (product) => product.stock);
-    const dailySales = getDailySales(7);
-    const yesterdayStart = new Date();
-    yesterdayStart.setHours(0, 0, 0, 0);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    const yesterdayRevenue = sum(data.sales.filter((sale) => new Date(sale.date) >= yesterdayStart && new Date(sale.date) < new Date(yesterdayStart.getTime() + dayMs)), (sale) => sale.total);
-    const change = yesterdayRevenue ? ((todaysRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : null;
-    const changeText = change === null ? "No sales yesterday" : `${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs yesterday`;
-    const changeClass = change === null ? "trend-neutral" : change >= 0 ? "trend-up" : "trend-down";
+    const dailySales = getDailySalesInRange(rangeStart, rangeEnd, data.sales);
+    const rangeLabel = dashboardStartDate === dashboardEndDate
+      ? formatDate(rangeStart, { month: "short", day: "numeric", year: "numeric" })
+      : `${formatDate(rangeStart, { month: "short", day: "numeric" })} – ${formatDate(rangeEnd, { month: "short", day: "numeric", year: "numeric" })}`;
+    const unknownCostSales = rangeSales.filter((sale) => sale.unitCost == null).length;
 
     renderMetrics("dashboard-metrics", [
-      metricCard("Sales today", money(todaysRevenue), '<svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15l3.2-3.5 3 2 5.3-6"/></svg>', "", `<span class="${changeClass}">${changeText}</span>`),
-      metricCard("Orders today", number(todaysSales.length), '<svg viewBox="0 0 24 24"><path d="M6 3h12l2 4v14H4V7l2-4Z"/><path d="M4 7h16M9 11h6"/></svg>', "purple", `<span class="trend-neutral">${number(sum(todaysSales, (sale) => sale.quantity))} items sold today</span>`),
-      metricCard("Products in stock", number(units), '<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4.5 7.2 7.5 3.9 7.5-3.9M12 11v9.5"/></svg>', "blue", `<span class="trend-neutral">${number(data.products.length)} unique products</span>`),
-      metricCard("Low stock items", number(stockAlerts.length), '<svg viewBox="0 0 24 24"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>', "orange", `<span class="${stockAlerts.length ? "trend-down" : "trend-up"}">${stockAlerts.length ? "Restock soon" : "Stock levels healthy"}</span>`),
+      metricCard("Sales", money(rangeRevenue), '<svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15l3.2-3.5 3 2 5.3-6"/></svg>', "", rangeLabel),
+      metricCard("Transactions", number(rangeSales.length), '<svg viewBox="0 0 24 24"><path d="M6 3h12l2 4v14H4V7l2-4Z"/><path d="M4 7h16M9 11h6"/></svg>', "purple", `${number(rangeItems)} items sold`),
+      metricCard("Items sold", number(rangeItems), '<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4.5 7.2 7.5 3.9 7.5-3.9M12 11v9.5"/></svg>', "blue", rangeLabel),
+      metricCard("Gross profit", money(rangeProfit), '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M16 8H9.5a2 2 0 0 0 0 4h5a2 2 0 0 1 0 4H8"/></svg>', "orange", `${rangeLabel}${unknownCostSales ? ` · ${number(unknownCostSales)} cost unavailable` : ""}`, `manager-only${currentUser.role === "cashier" ? " hidden" : ""}`),
     ]);
 
-    byId("chart-total").textContent = money(weekRevenue);
-    byId("chart-range").textContent = "Last 7 days";
+    byId("chart-total").textContent = money(rangeRevenue);
+    byId("chart-range").textContent = rangeLabel;
     renderChart("revenue-chart", "chart-y-axis", "chart-x-axis", dailySales);
+    byId("chart-x-axis").style.gridTemplateColumns = `repeat(${dailySales.length}, minmax(0, 1fr))`;
+    renderDailyProductProfit(rangeSales, data.products);
 
     byId("stock-alert-list").innerHTML = stockAlerts.length
       ? stockAlerts.slice(0, 4).map((product) => `<div class="stock-alert-item">${productIcon(product.name, "product-mini-icon")}<div class="product-mini-copy"><strong>${escapeHtml(product.name)}</strong><span class="${product.stock === 0 ? "stock-critical" : "stock-warning"}">${product.stock === 0 ? "Out of stock" : `Only ${number(product.stock)} left`}</span></div><span class="stock-item-count">${number(product.stock)} / ${number(product.reorderLevel)} min</span></div>`).join("")
@@ -251,13 +255,123 @@
     byId("recent-sales-body").innerHTML = sortSales().slice(0, 5).map((sale) => `<tr><td><span class="table-product">${productIcon(sale.productName, "sale-product-icon")}<span class="table-product-name">${escapeHtml(sale.productName)}</span></span></td><td>${relativeDate(sale.date)}</td><td>${number(sale.quantity)}</td><td class="align-right">${money(sale.total)}</td></tr>`).join("")
       || '<tr><td colspan="4" class="report-empty">No sales yet. Record your first sale to see it here.</td></tr>';
 
-    byId("inventory-value").textContent = money(sum(data.products, (product) => product.stock * product.cost));
+    byId("inventory-value").textContent = money(sum(data.products, (product) => product.stock * (product.cost || 0)));
     byId("retail-value").textContent = money(sum(data.products, (product) => product.stock * product.price));
     byId("units-in-stock").textContent = number(units);
     byId("low-stock-count").textContent = number(stockAlerts.length);
     byId("inventory-nav-count").textContent = number(data.products.length);
     byId("alerts-button").setAttribute("aria-label", `${stockAlerts.length} low-stock items. View inventory`);
     byId("alerts-button").querySelector(".notification-dot").classList.toggle("hidden", stockAlerts.length === 0);
+  }
+
+  function localDateInputValue(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function parseLocalDate(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  function initializeDashboardRange() {
+    if (dashboardStartDate && dashboardEndDate) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today);
+    start.setDate(start.getDate() - 6);
+    dashboardStartDate = localDateInputValue(start);
+    dashboardEndDate = localDateInputValue(today);
+    byId("dashboard-start-date").value = dashboardStartDate;
+    byId("dashboard-end-date").value = dashboardEndDate;
+    byId("dashboard-start-date").max = dashboardEndDate;
+    byId("dashboard-end-date").max = dashboardEndDate;
+  }
+
+  function applyDashboardRange() {
+    const startValue = byId("dashboard-start-date").value;
+    const endValue = byId("dashboard-end-date").value;
+    const start = parseLocalDate(startValue);
+    const end = parseLocalDate(endValue);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayCount = Math.round((end - start) / dayMs) + 1;
+    const error = !startValue || !endValue || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+      ? "Choose both a start and end date."
+      : start > end
+        ? "The start date must be on or before the end date."
+        : dayCount > 7
+          ? "Choose a date range of 7 days or less."
+          : end > today
+            ? "The end date cannot be in the future."
+            : "";
+    const errorElement = byId("dashboard-period-error");
+    errorElement.textContent = error;
+    errorElement.classList.toggle("hidden", !error);
+    if (error) return;
+    dashboardStartDate = startValue;
+    dashboardEndDate = endValue;
+    byId("dashboard-start-date").max = localDateInputValue(today);
+    byId("dashboard-end-date").max = localDateInputValue(today);
+    renderDashboard();
+  }
+
+  function getSalesInRange(sales, start, end) {
+    const endExclusive = new Date(end);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+    return sales.filter((sale) => {
+      const date = new Date(sale.date);
+      return date >= start && date < endExclusive;
+    });
+  }
+
+  function getDailySalesInRange(start, end, sales) {
+    const days = [];
+    const date = new Date(start);
+    while (date <= end) {
+      const day = new Date(date);
+      const nextDay = new Date(day);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const daySales = sales.filter((sale) => {
+        const soldAt = new Date(sale.date);
+        return soldAt >= day && soldAt < nextDay;
+      });
+      days.push({ date: day, total: sum(daySales, (sale) => sale.total) });
+      date.setDate(date.getDate() + 1);
+    }
+    return days;
+  }
+
+  function renderDailyProductProfit(sales, products) {
+    const productsById = new Map(products.map((product) => [product.id, product]));
+    const totals = new Map();
+    sales.forEach((sale) => {
+      const soldAt = new Date(sale.date);
+      const date = localDateInputValue(soldAt);
+      const productKey = sale.productId || sale.productName;
+      const key = `${date}:${productKey}`;
+      const total = totals.get(key) || {
+        date: soldAt,
+        productName: sale.productName,
+        quantity: 0,
+        revenue: 0,
+        cost: 0,
+        costKnown: true,
+      };
+      const unitCost = sale.unitCost ?? productsById.get(sale.productId)?.cost;
+      total.quantity += sale.quantity;
+      total.revenue += sale.total;
+      if (unitCost == null) total.costKnown = false;
+      else total.cost += sale.quantity * unitCost;
+      totals.set(key, total);
+    });
+    const rows = [...totals.values()].sort((a, b) => b.date - a.date || a.productName.localeCompare(b.productName));
+    byId("daily-profit-body").innerHTML = rows.map((row) => `
+      <tr><td>${escapeHtml(formatDate(row.date, { month: "short", day: "numeric", year: "numeric" }))}</td>
+      <td>${escapeHtml(row.productName)}</td><td>${number(row.quantity)}</td>
+      <td>${money(row.revenue)}</td><td>${row.costKnown ? money(row.cost) : "Unavailable"}</td>
+      <td class="align-right">${row.costKnown ? money(row.revenue - row.cost) : "Unavailable"}</td></tr>`).join("");
+    byId("daily-profit-empty").classList.toggle("hidden", rows.length > 0);
+    byId("daily-profit-table").classList.toggle("hidden", rows.length === 0);
   }
 
   function relativeDate(value) {
@@ -858,6 +972,9 @@
       byId("sale-error").classList.remove("hidden");
     }
   });
+
+  byId("dashboard-start-date").addEventListener("change", applyDashboardRange);
+  byId("dashboard-end-date").addEventListener("change", applyDashboardRange);
 
   byId("adjustment-form").addEventListener("submit", async (event) => {
     event.preventDefault();

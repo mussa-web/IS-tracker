@@ -106,6 +106,10 @@ h1 { margin-bottom: 6px; font: 700 calc(var(--font-scale, 1) * 25px)/1.25 "Segoe
 .button-secondary:hover { background: #fafbfb; }
 .button-plus { margin-right: 1px; font-size: calc(var(--font-scale, 1) * 17px); font-weight: 400; line-height: 1; }
 
+.dashboard-period { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: -7px 0 16px; color: #737985; font-size: calc(var(--font-scale, 1) * 10px); }
+.dashboard-period input { height: 34px; padding: 0 8px; color: #454a55; background: #fff; border: 1px solid #e7e9ec; border-radius: 5px; font: inherit; }
+.dashboard-period-note { margin-left: 3px; color: #a0a4ad; }
+.dashboard-period .field-error { flex-basis: 100%; color: #bf5e5b; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 18px; }
 .metric-card { min-height: 120px; padding: 17px 17px 14px; background: var(--surface); border: 1px solid #eff0f2; border-radius: 8px; box-shadow: var(--shadow); }
 .metric-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; color: #818692; font-size: calc(var(--font-scale, 1) * 10px); font-weight: 500; }
@@ -122,6 +126,12 @@ h1 { margin-bottom: 6px; font: 700 calc(var(--font-scale, 1) * 25px)/1.25 "Segoe
 
 .dashboard-grid { display: grid; grid-template-columns: minmax(0,1.62fr) minmax(280px,1fr); gap: 14px; }
 .panel { min-width: 0; background: var(--surface); border: 1px solid #eff0f2; border-radius: 8px; box-shadow: var(--shadow); }
+.daily-profit-panel { margin-top: 14px; padding: 17px 18px 0; }
+.daily-profit-panel .panel-heading { margin-bottom: 13px; }
+.daily-profit-panel .table-wrap { margin: 0 -18px; }
+.daily-profit-table { min-width: 680px; }
+.daily-profit-table td { white-space: nowrap; }
+.daily-profit-panel .empty-state { min-height: 150px; }
 .revenue-panel,.stock-panel,.value-panel { padding: 17px 18px; }
 .recent-panel { padding: 17px 0 0; }
 .recent-panel .panel-heading { padding: 0 18px; }
@@ -347,6 +357,7 @@ html[data-theme="dark"] .select-control,
 html[data-theme="dark"] .button-secondary { color: #c3c8d1; background: #242830; border-color: var(--line); }
 html[data-theme="dark"] .field input,
 html[data-theme="dark"] .field select { color: var(--ink); background: #1d2027; border-color: var(--line); }
+html[data-theme="dark"] .dashboard-period input { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .order-line,
 html[data-theme="dark"] .receipt-line,
 html[data-theme="dark"] .sale-total { color: #c3c8d1; background: #1d2027; border-color: var(--line); }
@@ -421,6 +432,13 @@ html[data-theme="dark"] .settings-choice[aria-pressed="true"] { color: #83d0ac; 
   .page-content { padding: 24px 16px 24px; }
   .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 18px; }
   .dashboard-heading { gap: 16px; }
+  .dashboard-period { gap: 7px; margin-top: -4px; }
+  .dashboard-period input { flex: 1 1 120px; min-width: 0; }
+  .dashboard-period-note { flex-basis: 100%; margin-left: 0; }
+  .dashboard-period .field-error { flex-basis: 100%; }
+  .daily-profit-panel { margin-top: 11px; padding: 15px 13px 0; }
+  .daily-profit-panel .table-wrap { margin-right: -13px; margin-left: -13px; }
+  .daily-profit-panel .panel-heading { padding: 0; }
   .heading-actions { width: 100%; }
   .heading-actions .button { flex: 1; }
   h1 { font-size: calc(var(--font-scale, 1) * 23px); }
