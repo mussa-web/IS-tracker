@@ -134,8 +134,10 @@ h1 { margin-bottom: 6px; font: 700 calc(var(--font-scale, 1) * 25px)/1.25 "Segoe
 .daily-profit-panel .empty-state { min-height: 150px; }
 .expenses-panel { margin-top: 14px; padding: 17px 18px 0; }
 .expenses-panel .panel-heading { align-items: center; margin-bottom: 14px; }
-.expenses-panel .panel-heading > strong { font-size: calc(var(--font-scale, 1) * 14px); white-space: nowrap; }
-.expense-form { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(120px, 1fr) minmax(140px, 1fr) auto; align-items: end; gap: 10px; }
+.expense-totals { display: flex; align-items: flex-end; gap: 16px; }
+.expense-totals span { display: grid; gap: 3px; color: #a0a4ad; font-size: calc(var(--font-scale, 1) * 9px); text-align: right; white-space: nowrap; }
+.expense-totals strong { color: var(--ink); font-size: calc(var(--font-scale, 1) * 14px); }
+.expense-form { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(180px, 2fr) minmax(110px, 1fr) minmax(140px, 1fr) auto; align-items: end; gap: 10px; }
 .expense-form .field input { width: 100%; height: 36px; padding: 0 9px; color: #454a55; background: #fff; border: 1px solid #e7e9ec; border-radius: 5px; font-size: calc(var(--font-scale, 1) * 11px); font-weight: 400; }
 .expense-form .field-error { grid-column: 1/-1; color: #bf5e5b; }
 .expense-note { margin: 10px 0 13px; color: #a0a4ad; font-size: calc(var(--font-scale, 1) * 9px); line-height: 1.5; }
@@ -369,6 +371,7 @@ html[data-theme="dark"] .field input,
 html[data-theme="dark"] .field select { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .dashboard-period input { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .expense-form .field input { color: var(--ink); background: #1d2027; border-color: var(--line); }
+html[data-theme="dark"] .expense-form .field select { color: var(--ink); background: #1d2027; border-color: var(--line); }
 html[data-theme="dark"] .order-line,
 html[data-theme="dark"] .receipt-line,
 html[data-theme="dark"] .sale-total { color: #c3c8d1; background: #1d2027; border-color: var(--line); }
@@ -453,9 +456,10 @@ html[data-theme="dark"] .settings-choice[aria-pressed="true"] { color: #83d0ac; 
   .expenses-panel { margin-top: 11px; padding: 15px 13px 0; }
   .expenses-panel .table-wrap { margin-right: -13px; margin-left: -13px; }
   .expense-form { grid-template-columns: 1fr 1fr; }
-  .expense-form .field:first-child { grid-column: 1/-1; }
+  .expense-form .field:nth-child(2) { grid-column: 1/-1; }
   .expense-form > .button { grid-column: 1/-1; }
   .expenses-panel .panel-heading { padding: 0; }
+  .expense-totals { align-items: flex-end; flex-direction: column; gap: 5px; }
   .heading-actions { width: 100%; }
   .heading-actions .button { flex: 1; }
   h1 { font-size: calc(var(--font-scale, 1) * 23px); }

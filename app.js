@@ -232,7 +232,9 @@
       const date = expenseDateValue(expense.date);
       return date >= dashboardStartDate && date <= dashboardEndDate;
     });
-    const expenseTotal = sum(rangeExpenses, (expense) => expense.amount);
+    const operatingExpenses = rangeExpenses.filter((expense) => expense.category !== "withdrawal");
+    const expenseTotal = sum(operatingExpenses, (expense) => expense.amount);
+    const withdrawalTotal = sum(rangeExpenses.filter((expense) => expense.category === "withdrawal"), (expense) => expense.amount);
     const netProfit = unknownCostSales ? null : rangeProfit - expenseTotal;
     const stockAlerts = lowStockProducts();
     const units = sum(data.products, (product) => product.stock);
@@ -256,7 +258,7 @@
     renderChart("revenue-chart", "chart-y-axis", "chart-x-axis", dailySales);
     byId("chart-x-axis").style.gridTemplateColumns = `repeat(${dailySales.length}, minmax(0, 1fr))`;
     renderDailyProductProfit(rangeSales, data.products);
-    renderExpenses(rangeExpenses, expenseTotal);
+    renderExpenses(rangeExpenses, expenseTotal, withdrawalTotal);
 
     byId("stock-alert-list").innerHTML = stockAlerts.length
       ? stockAlerts.slice(0, 4).map((product) => `<div class="stock-alert-item">${productIcon(product.name, "product-mini-icon")}<div class="product-mini-copy"><strong>${escapeHtml(product.name)}</strong><span class="${product.stock === 0 ? "stock-critical" : "stock-warning"}">${product.stock === 0 ? "Out of stock" : `Only ${number(product.stock)} left`}</span></div><span class="stock-item-count">${number(product.stock)} / ${number(product.reorderLevel)} min</span></div>`).join("")
@@ -287,14 +289,29 @@
     return value instanceof Date ? localDateInputValue(value) : String(value).slice(0, 10);
   }
 
-  function renderExpenses(expenses, total) {
+  function renderExpenses(expenses, total, withdrawals) {
     const ordered = [...expenses].sort((a, b) => expenseDateValue(b.date).localeCompare(expenseDateValue(a.date)));
     byId("range-expense-total").textContent = money(total);
+    byId("range-withdrawal-total").textContent = money(withdrawals);
     byId("expense-body").innerHTML = ordered.map((expense) => `
       <tr><td>${escapeHtml(formatDate(parseLocalDate(expenseDateValue(expense.date)), { month: "short", day: "numeric", year: "numeric" }))}</td>
+      <td>${escapeHtml(expenseCategoryLabel(expense.category))}</td>
       <td>${escapeHtml(expense.description)}</td><td class="align-right">${money(expense.amount)}</td></tr>`).join("");
     byId("expense-empty").classList.toggle("hidden", ordered.length > 0);
     byId("expense-table").classList.toggle("hidden", ordered.length === 0);
+  }
+
+  function expenseCategoryLabel(category) {
+    const labels = {
+      rent: "Rent",
+      salary: "Salary",
+      transport: "Transport",
+      electricity: "Electricity",
+      taxes: "Taxes",
+      withdrawal: "Withdrawal",
+      other: "Other",
+    };
+    return labels[category] || "Other";
   }
 
   function initializeDashboardRange() {
@@ -1007,14 +1024,15 @@
     const description = byId("expense-description").value.trim();
     const amount = Number(byId("expense-amount").value);
     const date = byId("expense-date").value;
+    const category = byId("expense-category").value;
     const errorElement = byId("expense-error");
-    if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || !date) {
-      errorElement.textContent = "Enter a description, a positive amount, and a valid expense date.";
+    if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || !date || !category) {
+      errorElement.textContent = "Choose a type and enter a description, a positive amount, and a valid expense date.";
       errorElement.classList.remove("hidden");
       return;
     }
     try {
-      await api("/api/expenses", { method: "POST", body: { description, amount, date } });
+      await api("/api/expenses", { method: "POST", body: { category, description, amount, date } });
       byId("expense-form").reset();
       byId("expense-date").value = localDateInputValue(new Date());
       errorElement.textContent = "";

@@ -163,16 +163,17 @@ class MemoryPool {
     if (sql.startsWith("SELECT id, name, sku, category, price, cost, stock, reorder_level, created_at FROM products ORDER BY")) {
       return { rows: this.products.map((product) => ({ ...product })), rowCount: this.products.length };
     }
-    if (sql.startsWith("SELECT id, description, amount, expense_date, created_at FROM expenses ORDER BY")) {
+    if (sql.startsWith("SELECT id, category, description, amount, expense_date, created_at FROM expenses ORDER BY")) {
       return { rows: this.expenses.slice().sort((a, b) => String(b.expense_date).localeCompare(String(a.expense_date))), rowCount: this.expenses.length };
     }
     if (sql.startsWith("INSERT INTO expenses")) {
       const expense = {
         id: crypto.randomUUID(),
-        description: values[0],
-        amount: values[1],
-        expense_date: values[2],
-        created_by: values[3],
+        category: values[0],
+        description: values[1],
+        amount: values[2],
+        expense_date: values[3],
+        created_by: values[4],
         created_at: new Date(),
       };
       this.expenses.push(expense);
@@ -497,17 +498,22 @@ test("setup, sessions, CSRF protection, and server-enforced role permissions", a
   const expenseDate = new Date().toISOString().slice(0, 10);
   const createdExpense = await manager.post("/api/expenses")
     .set("X-CSRF-Token", managerToken)
-    .send({ description: "Electricity bill", amount: 12000.5, date: expenseDate })
+    .send({ category: "electricity", description: "Electricity bill", amount: 12000.5, date: expenseDate })
     .expect(201);
   assert.equal(createdExpense.body.expense.amount, 12000.5);
+  assert.equal(createdExpense.body.expense.category, "electricity");
   assert.equal(createdExpense.body.expense.date, expenseDate);
   await manager.post("/api/expenses")
     .set("X-CSRF-Token", managerToken)
-    .send({ description: "Invalid amount", amount: -1, date: expenseDate })
+    .send({ category: "rent", description: "Invalid amount", amount: -1, date: expenseDate })
     .expect(400);
   await manager.post("/api/expenses")
     .set("X-CSRF-Token", managerToken)
-    .send({ description: "Invalid date", amount: 100, date: "2026-02-30" })
+    .send({ category: "rent", description: "Invalid date", amount: 100, date: "2026-02-30" })
+    .expect(400);
+  await manager.post("/api/expenses")
+    .set("X-CSRF-Token", managerToken)
+    .send({ category: "inventory", description: "Invalid category", amount: 100, date: expenseDate })
     .expect(400);
   assert.equal((await manager.post("/api/products").set("X-CSRF-Token", managerToken).send(productBody).expect(201)).body.product.stock, 5);
   assert.equal((await manager.get("/api/users").expect(403)).body.error, "Your role does not allow this action.");
@@ -531,7 +537,7 @@ test("setup, sessions, CSRF protection, and server-enforced role permissions", a
   assert.equal(cashierData.body.expenses, undefined, "cashier bootstrap excludes operating expense records");
   await cashier.post("/api/expenses")
     .set("X-CSRF-Token", cashierToken)
-    .send({ description: "Expense", amount: 10, date: expenseDate })
+    .send({ category: "rent", description: "Expense", amount: 10, date: expenseDate })
     .expect(403);
   assert.equal(pool.expenses.length, 1, "only authorized managers can create expenses");
   await cashier.post("/api/products").set("X-CSRF-Token", cashierToken).send(productBody).expect(403);
@@ -716,6 +722,7 @@ test("PostgreSQL schema explicitly creates the session table without removed OID
   assert.match(schema, /CREATE TABLE IF NOT EXISTS purchase_orders/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS purchase_order_receipts/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS expenses/);
+  assert.match(schema, /ADD COLUMN IF NOT EXISTS category varchar\(24\) NOT NULL DEFAULT 'other'/);
   assert.match(schema, /expenses_expense_date_idx/);
   assert.match(schema, /ADD COLUMN IF NOT EXISTS unit_cost numeric\(12,2\)/);
   assert.match(schema, /SET unit_cost = p\.cost/);

@@ -257,7 +257,7 @@ function createApp(pool, options = {}) {
       req.user.role === "cashier" ? [req.user.id] : [],
     );
     const expensesResult = revealCost
-      ? await pool.query("SELECT id, description, amount, expense_date, created_at FROM expenses ORDER BY expense_date DESC, created_at DESC")
+      ? await pool.query("SELECT id, category, description, amount, expense_date, created_at FROM expenses ORDER BY expense_date DESC, created_at DESC")
       : { rows: [] };
     res.json({
       user: publicUser(req.user),
@@ -266,6 +266,7 @@ function createApp(pool, options = {}) {
       ...(revealCost ? {
         expenses: expensesResult.rows.map((row) => ({
           id: row.id,
+          category: row.category,
           description: row.description,
           amount: Number(row.amount),
           date: row.expense_date,
@@ -379,15 +380,16 @@ function createApp(pool, options = {}) {
   app.post("/api/expenses", requireCsrf, requireAuth(pool), requireRole("admin", "manager"), asyncRoute(async (req, res) => {
     const expense = validateExpense(req.body);
     const { rows } = await pool.query(
-      `INSERT INTO expenses (description, amount, expense_date, created_by)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, description, amount, expense_date, created_at`,
-      [expense.description, expense.amount, expense.date, req.user.id],
+      `INSERT INTO expenses (category, description, amount, expense_date, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, category, description, amount, expense_date, created_at`,
+      [expense.category, expense.description, expense.amount, expense.date, req.user.id],
     );
     const row = rows[0];
     res.status(201).json({
       expense: {
         id: row.id,
+        category: row.category,
         description: row.description,
         amount: Number(row.amount),
         date: row.expense_date,
@@ -1025,6 +1027,8 @@ function validateSupplier(body) {
 
 function validateExpense(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw httpError(400, "Expense details are required.");
+  const categories = new Set(["rent", "salary", "transport", "electricity", "taxes", "withdrawal", "other"]);
+  if (!categories.has(body.category)) throw httpError(400, "Choose a valid expense category.");
   const date = body.date;
   if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw httpError(400, "Expense date must be a valid calendar date.");
@@ -1034,6 +1038,7 @@ function validateExpense(body) {
     throw httpError(400, "Expense date must be a valid calendar date.");
   }
   return {
+    category: body.category,
     description: text(body.description, "Expense description", 120),
     amount: amount(body.amount, "Expense amount", false),
     date,

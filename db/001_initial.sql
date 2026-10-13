@@ -48,12 +48,17 @@ WHERE p.id = s.product_id
 
 CREATE TABLE IF NOT EXISTS expenses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category varchar(24) NOT NULL DEFAULT 'other'
+    CHECK (category IN ('rent', 'salary', 'transport', 'electricity', 'taxes', 'withdrawal', 'other')),
   description varchar(120) NOT NULL,
   amount numeric(12,2) NOT NULL CHECK (amount > 0),
   expense_date date NOT NULL,
   created_by uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS category varchar(24) NOT NULL DEFAULT 'other'
+  CHECK (category IN ('rent', 'salary', 'transport', 'electricity', 'taxes', 'withdrawal', 'other'));
 
 CREATE TABLE IF NOT EXISTS http_sessions (
   sid varchar PRIMARY KEY,
